@@ -10,7 +10,7 @@
         <a class="btn btn-txt custCol-background js-sellItem positionWrapper pull-right marginTop9 right10 js-homeCreateListing">
           <span class="ion-ios-pricetag fontSize11 marginRight2 textOpacity1"></span>
           <%= polyglot.t('nav.createListing') %>
-        </a>  
+        </a>
         <a class="btn btn-txt custCol-background positionWrapper pull-right marginTop9 right10 js-homeCreateStore">
           <span class="ion-ios-cart fontSize11 marginRight2 textOpacity1"></span>
           <%= polyglot.t('CreateStore') %>
@@ -20,13 +20,21 @@
 
     <div class="bar barFlush navBar home-page-navigation height55">
       <a class="btn btn-bar btn-tab active js-productsTab">
-        <span class="ion-ios-pricetag fontSize11 marginRight2 textOpacity1"></span> 
+        <span class="ion-ios-pricetag fontSize11 marginRight2 textOpacity1"></span>
         <%= polyglot.t('Listings') %>
       </a>
       <a class="btn btn-bar btn-tab js-vendorsTab">
-        <span class="ion-document-text fontSize12 marginRight2 textOpacity1"></span> 
+        <span class="ion-document-text fontSize12 marginRight2 textOpacity1"></span>
         <%= polyglot.t('Pages') %>
       </a>
+      <div class="flexExpand">
+        <div class="pull-right marginRight10">
+          <div class="btn-togWrapper">
+            <a class="btn btn-txt btn-togLeft toggle-txt active js-searchDHT">DHT</a>
+            <a class="btn btn-txt btn-togRight toggle-txt js-search3rdP" data-searchType="Duo">Duo</a>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
   <div class="bar home-page-navigation-filler hide custCol-primary"></div>
@@ -46,7 +54,7 @@
                 <span class="toggle-txt"><%= polyglot.t('ShowOnlyFollowerListings') %></span>
               </a>
               <% if(!localStorage.getItem('safeListingsWarningDissmissed')){ %>
-                <div class="discoverToggleHelper js-discoverToggleHelper"><%= polyglot.t('TryRandom') %></div>
+              <div class="discoverToggleHelper js-discoverToggleHelper"><%= polyglot.t('TryRandom') %></div>
               <% } %>
               <a class="btn btn-txt btn-discoverToggle borderRadiusBottom0 btn-togRight js-homeListingsAll tooltip tooltip-left"
                  data-tooltip="<%= polyglot.t('ShowAllListingsTooltip') %>">
@@ -89,7 +97,7 @@
             <div class="textOpacity75 typeWeight400 marginTop6">
               <div class="js-loadingText" data-default-text="<%= polyglot.t('discover.searchDefaultText') %>" data-searching-text="<%= polyglot.t('discover.searchingText') %>"><%= polyglot.t('discover.searchDefaultText') %></div>
             </div>
-          </div> 
+          </div>
         </div>
       </div>
     </div>

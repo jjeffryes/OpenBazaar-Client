@@ -12,13 +12,19 @@ var __ = require('underscore'),
     userShortModel = require('../models/userShortMd'),
     Dialog = require('../views/dialog.js');
 
+require('../utils/algoliaSearch.jquery.min.js');
+
 module.exports = pageVw.extend({
 
   className: "homeView contentWrapper",
 
   events: {
-    'click .js-productsTab': function(){this.setState("products");},
-    'click .js-vendorsTab': function(){this.setState("vendors");},
+    'click .js-productsTab': function() {
+      this.setState("products");
+    },
+    'click .js-vendorsTab': function() {
+      this.setState("vendors");
+    },
     'click .js-homeCreateStore': 'createStore',
     'click .js-homeCreateListing': 'createListing',
     'click .js-homeSearchItemsClear': 'onSearchItemsClear',
@@ -27,7 +33,9 @@ module.exports = pageVw.extend({
     'blur .js-homeSearchItems': 'searchItemsBlur',
     'click .js-homeListingsFollowed': 'clickListingsFollowed',
     'click .js-homeListingsAll': 'clickListingsAll',
-    'click .backToTop': 'clickBackToTop'
+    'click .backToTop': 'clickBackToTop',
+    'click .js-searchDHT': 'clickSearchDHT',
+    'click .js-search3rdP': 'clickSearch3rdP'
   },
 
   initialize: function(options){
@@ -43,7 +51,6 @@ module.exports = pageVw.extend({
     this.itemViews = [];
     this.userViews = [];
     this.obContainer = $('#obContainer');
-    this.loadingProducts = false;
     this.loadingVendors = false;
     //store a list of the viewing user's followees. They will be different from the page followers if this is not their own page.
     this.ownFollowing = [];
@@ -51,6 +58,8 @@ module.exports = pageVw.extend({
     this.showNSFW = JSON.parse(localStorage.getItem('NSFWFilter'));
     this.cachedScrollPositions = {};
     this.loadedUsers = [];
+    this.searchWith = "DHT";
+    this.current3rdPPage = 0;
 
     this.model.set({user: this.options.userModel.toJSON(), page: this.userProfile.toJSON()});
 
@@ -151,12 +160,12 @@ module.exports = pageVw.extend({
 
         if (self.searchItemsText) {
           self.$el.find('.js-loadingText').html(
-            window.polyglot.t('discover.noTaggedResults')
-              .replace('%{tag}', `<span class="btn-pill color-secondary">#${self.searchItemsText}</span>`)
+              window.polyglot.t('discover.noTaggedResults')
+                  .replace('%{tag}', `<span class="btn-pill color-secondary">#${self.searchItemsText}</span>`)
           );
         } else {
           self.$el.find('.js-loadingText')
-            .html(window.polyglot.t('discover.noResults'));
+              .html(window.polyglot.t('discover.noResults'));
         }
       }
     }, 10000);
@@ -179,10 +188,11 @@ module.exports = pageVw.extend({
   handleSocketMessage: function(response) {
     var data = JSON.parse(response.data);
     if (data.id == this.socketSearchID) {
-      this.renderItem(data);
+      if (this.searchWith === 'DHT') this.renderItem(data);
     } else if (data.id == this.socketItemsID){
-      this.loadingProducts = false;
-      this.renderItem(data);
+      if (this.searchWith === 'DHT') {
+        this.renderItem(data);
+      }
     } else if (data.id == this.socketUsersID) {
       this.loadingVendors = false;
       this.renderUser(data.vendor);
@@ -193,6 +203,7 @@ module.exports = pageVw.extend({
 
   render: function(){
     var self = this;
+    this.current3rdPPage = 0;
 
     loadTemplate('./js/templates/backToTop.html', function(backToTopTmpl) {
       loadTemplate('./js/templates/home.html', function(loadedTemplate) {
@@ -203,11 +214,11 @@ module.exports = pageVw.extend({
         self.listingToggle = self.$('.js-homeListingToggle');
 
         self.setState(self.state, self.searchItemsText);
-        if(self.model.get('page').profile.vendor == true) {
+        if (self.model.get('page').profile.vendor == true) {
           self.$el.find('.js-homeCreateStore').addClass('hide');
           self.$el.find('.js-homeMyPage').addClass('show');
           self.$el.find('.js-homeCreateListing').addClass('show');
-        }else{
+        } else {
           self.$el.find('.js-homeCreateStore').addClass('show');
           self.$el.find('.js-homeCreateListing').addClass('hide');
         }
@@ -216,7 +227,7 @@ module.exports = pageVw.extend({
         self.loadingVendors = true;
         self.socketView.getVendors(self.socketUsersID);
         //set the filter
-        if(localStorage.getItem('homeShowAll') == "yes"){
+        if (localStorage.getItem('homeShowAll') == "yes"){
           self.setListingsAll();
           self.loadAllItems();
         } else {
@@ -226,8 +237,8 @@ module.exports = pageVw.extend({
 
         //listen to scrolling on container
         self.scrollHandler = __.bind(
-          __.throttle(self.onScroll, 100),
-          self
+            __.throttle(self.onScroll, 100),
+            self
         );
         self.obContainer.on('scroll', self.scrollHandler);
 
@@ -239,6 +250,8 @@ module.exports = pageVw.extend({
         }
 
         self.$backToTop = self.$('.backToTop');
+        self.$searchDHTbtn = self.$('.js-searchDHT');
+        self.$search3rdPBtn = self.$('.js-search3rdP');
       });
     });
   },
@@ -246,9 +259,10 @@ module.exports = pageVw.extend({
   renderItem: function(item){
     var self = this,
         blocked,
-        addressCountries = this.userModel.get('shipping_addresses').map(function(address){ return address.country; }),
-        userCountry = this.userModel.get('country'),
-        contract_type = item.contract_type;
+        addressCountries = this.userModel.get('shipping_addresses').map(function(address) {
+          return address.country;
+        }),
+        userCountry = this.userModel.get('country');
 
     addressCountries.push(userCountry);
 
@@ -257,17 +271,17 @@ module.exports = pageVw.extend({
     //get data from inside the listing object
     item = item.listing;
     item.userCurrencyCode = this.userModel.get('currency_code');
-    item.imageURL = this.userModel.get('serverUrl')+"get_image?hash="+item.thumbnail_hash+"&guid="+item.guid;
-    item.avatarURL = this.userModel.get('serverUrl')+"get_image?hash="+item.avatar_hash+"&guid="+item.guid;
+    item.imageURL = item.imageURL || this.userModel.get('serverUrl')+"get_image?hash="+item.thumbnail_hash+"&guid="+item.guid;
+    item.avatarURL = item.avatarURL || this.userModel.get('serverUrl')+"get_image?hash="+item.avatar_hash+"&guid="+item.guid;
     item.showAvatar = true;
     item.userID = item.guid;
     item.discover = true;
     item.ownGuid = this.userModel.get('guid');
     item.userCountries = addressCountries;
-    item.contract_type = contract_type;
+    item.contract_type = item.contract_type;
 
-
-    item.ownFollowing = this.ownFollowing.indexOf(item.guid) != -1;
+    //don't create if not followed and only followed should be shown
+    if (this.onlyFollowing && this.ownFollowing.indexOf(item.guid) === -1) return;
 
     blocked = this.userModel.get('blocked_guids') || [];
     item.isBlocked = blocked.indexOf(item.guid) !== -1;
@@ -300,13 +314,7 @@ module.exports = pageVw.extend({
       self.itemViews.push(itemShort);
     };
 
-    if (this.onlyFollowing){
-      if (item.ownFollowing){
-        newItem();
-      }
-    } else {
-      newItem();
-    }
+    newItem();
   },
 
   renderUser: function(user){
@@ -460,10 +468,14 @@ module.exports = pageVw.extend({
 
   onScroll: function(){
     if (this.obContainer[0].scrollTop + this.obContainer[0].clientHeight + 200 > this.obContainer[0].scrollHeight && !this.searchItemsText){
-      if (this.state == "products" && !this.loadingProducts){
+      if (this.state == "products"){
         this.setSocketTimeout();
-        this.loadingProducts = true;
-        this.socketView.getItems(this.socketItemsID, this.onlyFollowing);
+        if (this.searchWith === "DHT") {
+          this.socketView.getItems(this.socketItemsID, this.onlyFollowing);
+        } else {
+          this.current3rdPPage++;
+          this.search3rdP(this.searchItemsText, this.current3rdPPage);
+        }
       } else if (this.state == "vendors" && !this.loadingVendors){
         this.setSocketTimeout();
         this.loadingVendors = true;
@@ -472,8 +484,8 @@ module.exports = pageVw.extend({
     }
 
     if (
-      this.state === "products" && this.obContainer[0].scrollTop > 180 ||
-      this.state === "vendors" && this.obContainer[0].scrollTop > 140
+        this.state === "products" && this.obContainer[0].scrollTop > 180 ||
+        this.state === "vendors" && this.obContainer[0].scrollTop > 140
     ) {
       this.$backToTop.addClass('slideUp');
     } else {
@@ -488,6 +500,7 @@ module.exports = pageVw.extend({
 
     this.itemViews = [];
     this.setListingsBlockedCount(0);
+    this.current3rdPPage = 0;
   },
 
   clearUsers: function(){
@@ -546,6 +559,24 @@ module.exports = pageVw.extend({
 
   },
 
+  clickSearchDHT: function() {
+    this.setSearchWith('DHT');
+    this.$searchDHTbtn.addClass('active');
+    this.$search3rdPBtn.removeClass('active');
+
+  },
+
+  clickSearch3rdP: function(e) {
+    this.setSearchWith($(e.target).attr('data-searchType'));
+    this.$searchDHTbtn.removeClass('active');
+    this.$search3rdPBtn.addClass('active');
+  },
+
+  setSearchWith: function(searchWith) {
+    this.searchWith = searchWith;
+    this.loadItemsOrSearch();
+  },
+
   searchItems: function(searchItemsText){
     if (searchItemsText){
       var hashedItem = "#" + searchItemsText;
@@ -554,15 +585,20 @@ module.exports = pageVw.extend({
 
       this.searchItemsText = searchItemsText;
       this.clearItems();
-      this.socketItemsID = "";
-      this.socketSearchID = Math.random().toString(36).slice(2);
-      this.socketView.search(this.socketSearchID, searchItemsText);
-      this.setSocketTimeout();
+      if(this.searchWith === "DHT"){
+        this.socketItemsID = "";
+        this.socketSearchID = Math.random().toString(36).slice(2);
+        this.socketView.search(this.socketSearchID, searchItemsText);
+        this.setSocketTimeout();
+      } else {
+        this.search3rdP(searchItemsText);
+      }
+
       this.$el.find('.js-discoverHeading').html(hashedItem);
       this.$el.find('.js-loadingText').html(
-        this.$el.find('.js-loadingText')
-          .data('searchingText')
-          .replace('%{tag}', `<span class="btn-pill color-secondary">${hashedItem}</span>`)
+          this.$el.find('.js-loadingText')
+              .data('searchingText')
+              .replace('%{tag}', `<span class="btn-pill color-secondary">${hashedItem}</span>`)
       );
       this.$el.find('.js-homeSearchItemsClear').removeClass('hide');
       this.$el.find('.js-homeSearchItems').val("#" + searchItemsText);
@@ -572,12 +608,71 @@ module.exports = pageVw.extend({
     }
   },
 
+  search3rdP: function(searchItemsText = this.searchItemsText, page = 0){
+    const self = this;
+    const client = $.algolia.Client('6769YP802U', '214cd0c64a1ee1975792a0ebcf8aea00');
+    const index = client.initIndex('listings');
+    let shownResults = 0;
+
+    index.search(searchItemsText, {
+      hitsPerPage: 30,
+      maxValuesPerFacet: 100,
+      page: page,
+      facets: [
+        "vendor_offer.listing.categorisation.path",
+        "vendor_offer.listing.item.keywords",
+        "vendor_offer.listing.metadata.category",
+        "vendor_offer.listing.item.condition",
+        "vendor_offer.listing.shipping.shipping_origin",
+        "vendor_offer.listing.shipping.free",
+        "vendor_offer.listing.shipping.shipping_regions"]
+    })
+        .done(function(data){
+          data.hits.forEach((hit) => {
+            let item = {};
+            let listing = {};
+            let hitListing = hit.vendor_offer.listing;
+            listing.avatar_hash = hitListing.vendor.avatar_hash;
+            listing.contract_hash = hitListing.id.guid;
+            listing.contract_type = hitListing.metadata.category;
+            listing.currency_code = "BTC"; // duosearch only sends BTC
+            listing.discover = true;
+            listing.guid = hitListing.id.guid;
+            listing.handle = hitListing.vendor.handle;
+            listing.nsfw = hitListing.item.nsfw;
+            listing.origin = hitListing.shipping ? hitListing.shipping.shipping_origin : '';
+            listing.price = hitListing.item.price_per_unit.bitcoin;
+            listing.ships_to = hitListing.shipping ? hitListing.shipping.shipping_regions : '';
+            listing.thumbnail_hash = hitListing.item.image_hashes[0];
+            listing.title = hitListing.item.title;
+
+            item.listing = listing;
+            self.renderItem(item);
+
+            if (!self.onlyFollowing || (self.onlyFollowing && self.ownFollowing.indexOf(listing.guid) !== -1)) {
+              shownResults++;
+            }
+          });
+
+
+          if(shownResults < 30 && page < 100) {
+            self.current3rdPPage++;
+            self.search3rdP(self.searchItemsText, self.current3rdPPage);
+          }
+        });
+
+  },
+
   loadItems: function(){
     this.clearItems();
-    this.socketItemsID = Math.random().toString(36).slice(2);
-    this.loadingProducts = true;
-    this.socketView.getItems(this.socketItemsID, this.onlyFollowing);
-    this.setSocketTimeout();
+
+    if (this.searchWith === "DHT"){
+      this.socketItemsID = Math.random().toString(36).slice(2);
+      this.socketView.getItems(this.socketItemsID, this.onlyFollowing);
+      this.setSocketTimeout();
+    } else {
+      this.search3rdP();
+    }
     this.searchItemsText = "";
     this.$el.find('.js-homeSearchItems').val("");
     this.$el.find('.js-homeSearchItemsClear').addClass('hide');

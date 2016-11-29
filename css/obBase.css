@@ -841,7 +841,7 @@ h6, .h6 {
 
 .userPage-subViews .gridItem:hover .itemImg,
 .homeView .gridItem:hover .itemImg {
-    box-shadow: 0 0 37px -10px rgb(0, 0, 0);
+  box-shadow: 0 0 37px -10px rgb(0, 0, 0);
 }
 
 /* if itemImg is nested, do not show box shadow */
@@ -852,8 +852,8 @@ h6, .h6 {
 
 .userPage-subViews .gridItem .itemImg:active,
 .homeView .gridItem .itemImg:active {
-    box-shadow: 0 0 67px -10px rgb(0, 0, 0);
-    opacity: .75;
+  box-shadow: 0 0 67px -10px rgb(0, 0, 0);
+  opacity: .75;
 }
 
 .pageGridItems .flexCol-4:nth-child(3n) .gridItem,
@@ -1053,7 +1053,7 @@ label.fieldItem {
   vertical-align: middle;
   cursor: pointer;
   box-shadow: 0 1px 0 rgba(0, 0, 0, 0.15);
-   -webkit-user-select: none;
+  -webkit-user-select: none;
 }
 
 
@@ -1300,7 +1300,7 @@ label.fieldItem {
   width: 100%;
   height: 100%;
   transition: opacity .05s cubic-bezier(0, 0, 0.2, 1),
-              width 0.5s ease;
+  width 0.5s ease;
   padding-top: 25px;
   z-index: 1;
   pointer-events: all;
@@ -1758,8 +1758,8 @@ removed because I don't think we're using the trick to hide the borders any more
 }
 
 @-webkit-keyframes borderDashedFade {
-    0%   {opacity: 0;}
-    100% {opacity: 1;}
+  0%   {opacity: 0;}
+  100% {opacity: 1;}
 }
 
 .box-dashed {
@@ -1984,19 +1984,19 @@ input[type="text"].txtField-bar {
 }
 
 .btn.btn-buyNow {
-margin: auto;
-    width: 280px;
-    height: 52px;
-    line-height: 52px;
-    padding: 0;
-    opacity: 1;
-    font-size: 17px;
-    border-radius: 5px;
-    float: none;
-    font-weight: 500;
-    transition: opacity .25s cubic-bezier(0, 0, 0.2, 1);
-    letter-spacing: 1px;
-    text-transform: uppercase;
+  margin: auto;
+  width: 280px;
+  height: 52px;
+  line-height: 52px;
+  padding: 0;
+  opacity: 1;
+  font-size: 17px;
+  border-radius: 5px;
+  float: none;
+  font-weight: 500;
+  transition: opacity .25s cubic-bezier(0, 0, 0.2, 1);
+  letter-spacing: 1px;
+  text-transform: uppercase;
 }
 
 .btn.btn-buyNow:hover {
@@ -2038,6 +2038,18 @@ margin: auto;
 .btn.btn-c3,
 #userPage .btn.btn-c3 {
   background-color: rgba(33,117,47,1);
+}
+
+.btn.toggle-txt,
+.btn .toggle-txt{
+  opacity: .20;
+}
+
+.btn.toggle-txt:active ,
+.btn:active .toggle-txt,
+.btn.active.toggle-txt,
+.btn.active .toggle-txt {
+  opacity: 1;
 }
 
 .btn.btn-discoverToggle {
@@ -2100,15 +2112,6 @@ margin: auto;
 .btn.btn-c3:active,
 .btn.btn-c3.active {
   background-color: #19C836;
-}
-
-.btn.btn-c1 .toggle-txt {
-  opacity: .20;
-}
-
-.btn.btn-c1:active .toggle-txt,
-.btn.btn-c1.active .toggle-txt {
-  opacity: 1;
 }
 
 .btn.btn-win {
@@ -2362,14 +2365,14 @@ div.chatSearchOut .chatSearchIcon {
 }
 
 .chatConversationHeader {
-    padding: 0;
-    background-color: #565656;
-    height: 45px;
-    line-height: 45px;
-    padding-left: 10px;
-    color: #fff;
-    border-top-left-radius: 4px;
-    margin-left: 2px;
+  padding: 0;
+  background-color: #565656;
+  height: 45px;
+  line-height: 45px;
+  padding-left: 10px;
+  color: #fff;
+  border-top-left-radius: 4px;
+  margin-left: 2px;
 }
 
 .chatConversationLabel {
@@ -2458,7 +2461,7 @@ div.chatSearchOut .chatSearchIcon {
 }
 
 .chatConversationMessage  .txtAreaField:focus {
-    outline: 2px solid #565656;
+  outline: 2px solid #565656;
 }
 
 .chatConversationMessage  .txtAreaField:after {
@@ -2466,13 +2469,13 @@ div.chatSearchOut .chatSearchIcon {
 }
 
 .chatConversationAvatar {
-    width: 45px;
-    height: 45px;
-    border-bottom-left-radius: 0;
-    border-bottom-right-radius: 0;
-    border-top-right-radius: 0;
-    margin-right: 6px;
-    margin-left: -10px;
+  width: 45px;
+  height: 45px;
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+  border-top-right-radius: 0;
+  margin-right: 6px;
+  margin-left: -10px;
 }
 
 .chatConversationAvatar:hover {
@@ -2802,6 +2805,7 @@ div.chatSearchOut .chatSearchIcon {
 .btn.btn-togRight {
   /* creates a set of buttons flush with each other */
   float: left;
+  box-shadow: none;
 }
 
 .btn.btn-togLeft {
@@ -3366,11 +3370,11 @@ input[type="checkbox"].fieldItem {
 }
 
 input[type="checkbox"].fieldItem + label {
-   display: inline-block;
-   cursor: pointer;
-   position: relative;
-   line-height: 53px;
- }
+  display: inline-block;
+  cursor: pointer;
+  position: relative;
+  line-height: 53px;
+}
 
 input[type="checkbox"].fieldItem + label:before {
   display: inline;
@@ -3562,12 +3566,12 @@ input[type="checkbox"].fieldItem:checked + label .togLabelOff {
 }
 
 .highlightRow {
-    position: absolute;
-    left: 0;
-    top: 0;
-    width: 4px;
-    height: 100%;
-    background: #F3A123;
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 4px;
+  height: 100%;
+  background: #F3A123;
 }
 
 .onboardingIntroDiscover {
@@ -3634,7 +3638,7 @@ input[type="checkbox"].fieldItem:checked + label .togLabelOff {
 }
 
 .popMenu-navBarSubMenu-servers {
-    width: 230px;
+  width: 230px;
 }
 
 .popMenu-opened .popMenu-navBarSubMenu-pageNav,
@@ -4637,7 +4641,7 @@ input[type="checkbox"].fieldItem:checked + label .togLabelOff {
   font-size: 12px;
 }
 
-  /* protect customize controls from custom page styles */
+/* protect customize controls from custom page styles */
 #ov1 #customizeControls .labelWrap {
   height: 40px;
   border-radius: 0;
@@ -4863,12 +4867,12 @@ input[type="checkbox"].fieldItem:checked + label .togLabelOff {
 
 .buyAddressWrapper {
   padding: 15px;
-    word-wrap: break-word;
+  word-wrap: break-word;
 }
 
 .payAddressWrapper {
-    padding: 20px 15px;
-    word-wrap: break-word;
+  padding: 20px 15px;
+  word-wrap: break-word;
 }
 
 /*========== utility classes ==========*/
@@ -5754,7 +5758,7 @@ input[type="checkbox"].fieldItem:checked + label .togLabelOff {
   position: relative;
 }
 
- .positionRelative {
+.positionRelative {
   position: relative;
 }
 
@@ -6399,4 +6403,23 @@ input[type="checkbox"].fieldItem:checked + label .togLabelOff {
 
 #ov1 .TODO.TODO.TODO.TODO.TODO {
   display: none; /* hide in production */
+}
+
+
+.peersList {
+  margin-top: 10px;
+  padding-right: 30px;
+  display: block;
+  color: #9999A0;
+  max-height: 200px;
+  overflow: auto;
+}
+
+.peersList>ul{
+  list-style-type: none;
+  padding-left: 0;
+}
+
+.peersList>ul>li {
+  padding-bottom: 5px;
 }
