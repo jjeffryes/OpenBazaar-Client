@@ -138,6 +138,7 @@ textarea {
 
 input[type=range]{
   -webkit-appearance: none;
+  width: 100%;
 }
 
 input[type=range]::-webkit-slider-runnable-track {
@@ -150,7 +151,7 @@ input[type=range]::-webkit-slider-runnable-track {
 
 input[type=range]::-webkit-slider-thumb {
   -webkit-appearance: none;
-  border: #777;
+  border: #777 1px solid;
   height: 16px;
   width: 16px;
   border-radius: 50%;
@@ -160,10 +161,6 @@ input[type=range]::-webkit-slider-thumb {
 
 input[type=range]:focus {
   outline: none;
-}
-
-input[type=range]:focus::-webkit-slider-runnable-track {
-  background: rgba(255,255,255,0.9);
 }
 
 textarea {
@@ -329,10 +326,6 @@ h6, .h6 {
   position: relative;
 }
 
-#contentFrame.modalOpen #pageNav .badge {
-  display: none;
-}
-
 #pageNav {
   position: relative;
   -webkit-app-region: no-drag;
@@ -348,7 +341,7 @@ h6, .h6 {
 #obContainer {
   transition: width 0.5s ease;
   width: calc(100% - 47px);
-  height: calc(100% - 50px);
+  height: calc(100% - 74px);
   overflow-y: scroll;
   padding-top: 20px;
   -webkit-app-region: no-drag;
@@ -357,20 +350,10 @@ h6, .h6 {
   box-sizing: border-box;
 }
 
-#obContainer.modalOpen,
-#obContainer.innerModalOpen {
-  overflow: hidden;
-  /* obContainer must also be set to scrollTop(0), otherwise the modal may be scrolled out of place */
-}
-
-#obContainer.modalOpen #content {
-  -webkit-filter: blur(1px);
-}
-
 #obContainer.customizeUserPage {
   overflow: hidden;
   border: 5px dashed #fff;
-  height: 100%;
+  height: calc(100% - 76px);
   animation: borderDashedFade .35s normal linear;
 }
 
@@ -406,7 +389,7 @@ h6, .h6 {
 #appBar .windowControls {
   position: absolute;
   left: 8px;
-  top: 6px;  
+  top: 6px;
 }
 
 #appBar.style-win .windowControls {
@@ -528,6 +511,7 @@ h6, .h6 {
   float: left;
 }
 
+/* while not used for modals, overlay is used when page nav drop downs are opened */
 #overlay,
 .overlay {
   position: absolute;
@@ -536,7 +520,7 @@ h6, .h6 {
   height: 100%;
   width: 100%;
   background-color: rgba(25,25,25,0.85);
-  z-index: 0;
+  z-index: 1;
   transition: all .25s cubic-bezier(0, 0, 0.2, .5);
 }
 
@@ -730,12 +714,12 @@ h6, .h6 {
 .listingDoesNotShipToYou,
 .listingDoesNotShipToYou.tooltip {
   background: #252525;
-  height: 18px; 
+  height: 18px;
   width: 18px;
   right: 39px;
-  padding: 10px; 
-  position: absolute; 
-  text-align: center; 
+  padding: 10px;
+  position: absolute;
+  text-align: center;
   top: 217px;
   transition: top .3s cubic-bezier(0, 0, 0.2, 1);
   border-radius: 32px;
@@ -743,11 +727,11 @@ h6, .h6 {
 }
 
 .listingsDoesNotShipToYouSlash {
-  position: absolute; 
-  top: 3px; 
-  color: #DE2A14; 
-  font-size: 26px; 
-  left: 14px; 
+  position: absolute;
+  top: 3px;
+  color: #DE2A14;
+  font-size: 26px;
+  left: 14px;
   font-weight: 700;
 }
 
@@ -1135,6 +1119,11 @@ label.fieldItem {
   position: relative;
 }
 
+.fieldItem.thumbnail-small {
+  min-height: 30px;
+  margin: 10px 0 10px 10px;
+}
+
 .thumbnail {
   height: 54px;
   width: 54px;
@@ -1195,6 +1184,10 @@ label.fieldItem {
 
 .row30 {
   margin-bottom: 30px;
+}
+
+.row40 {
+  margin-bottom: 40px;
 }
 
 .row60 {
@@ -1313,8 +1306,34 @@ label.fieldItem {
   pointer-events: all;
 }
 
-.modal.noNav {
-  padding-top: 85px
+.modal .btn-corner {
+  z-index: 0;
+}
+
+.modal.underPageNav {
+  top: 46px
+}
+
+/*
+  .insideApp will position the modal below the nav bar and so it doesn't obscure chat.
+*/
+.modal.insideApp {
+  top: 46px;
+  width: calc(100% - 47px);
+  z-index: 0;
+}
+
+#ov1.chatOpen .modal.insideApp {
+  width: calc(100% - 230px);
+}
+
+/*
+  A fullscreen modal has it's content extended across the entire screen
+  (excluding the top menu bar), as opposed to being a "box" centered in
+  the screen (e.g the loading modal). It's not really compatible with .insideApp.
+*/
+.modal.modalCoverFullscreen {
+  padding-top: 0;
 }
 
 .modal-child {
@@ -1325,6 +1344,11 @@ label.fieldItem {
   right: 0;
   left: 0;
   transition: right 0.5s ease;
+}
+
+.modal.modalCoverFullscreen .modal-child {
+  width: 100%;
+  height: 100%;
 }
 
 .modal-opaque .modal-child {
@@ -2157,7 +2181,7 @@ margin: auto;
   display: block;
   top: -3px;
   font-size: 21px;
-  color: #fff;  
+  color: #fff;
 }
 
 #appBar.style-win .btn.btn-winMax {
@@ -2166,7 +2190,7 @@ margin: auto;
   border: 1px solid #fff;
   width: 13px;
   height: 13px;
-  top: 3px;  
+  top: 3px;
 }
 
 #appBar.style-win .btn.btn-winMax .btn-win-icon,
@@ -2962,6 +2986,10 @@ label {
   margin: 0;
 }
 
+.fieldItem.plainText {
+  line-height: 20px;
+}
+
 input[type="text"].fieldItem,
 input[type="number"].fieldItem,
 input[type="email"].fieldItem,
@@ -3036,6 +3064,11 @@ input[type="url"].fieldItem.fieldItem-withButton,
 input[type="number"].fieldItem.fieldItem-withButton {
   position: absolute;
   padding-left: 50px;
+}
+
+input[type="number"].fieldItem.spinButtons {
+  overflow: hidden;
+  padding-right: 25px;
 }
 
 .numberSpinnerUp,
@@ -3812,11 +3845,6 @@ input[type="checkbox"].fieldItem:checked + label .togLabelOff {
   z-index: 1;
 }
 
-.userPage-subViews img {
-  width: 100%;
-  height: auto;
-}
-
 .icon-huge {
   font-size: 140px;
 }
@@ -4133,7 +4161,6 @@ input[type="checkbox"].fieldItem:checked + label .togLabelOff {
   top: 0;
   height: 38px;
   line-height: 38px;
-  padding: 2px;
   border-radius: 0;
   overflow: hidden;
   border-top-right-radius: 3px;
@@ -4348,6 +4375,18 @@ input[type="checkbox"].fieldItem:checked + label .togLabelOff {
   margin-right: 0;
 }
 
+.cropit-preview.cropit-image-loading .spinner {
+  opacity: 1;
+}
+
+.cropit-preview.cropit-image-loaded .cropit-preview-image-container {
+  cursor: move;
+}
+
+.cropit-image-zoom-input[disabled] {
+  opacity: .2;
+}
+
 .cropit-image-preview.cropit-avatar {
   background: url('../imgs/defaultUser.png');
   background-size: cover;
@@ -4419,71 +4458,29 @@ input[type="checkbox"].fieldItem:checked + label .togLabelOff {
   position: absolute;
 }
 
-#modalHolder,
-.modalHolder {
-  position: absolute;
-  z-index: 0;
-  top: 0;
-  width: 100%;
-  height: 100%;
-  pointer-events: none;
-}
-
-#pageNav .modalHolder {
-  /* patch for the about modal. It should be moved to the baseModal view */
-  position: fixed;
-  z-index: 1;
-  top: 74px;
-}
-
-#messageModal {
-  z-index: 9;
-}
-
-#loadingModal {
-  padding-top: 0;
-}
-
 .page-connect-modal .spinner-with-logo {
   margin-top: -45px;
 }
 
-#ov1 #loadingModal.hide {
-  height: 0; /* kludge to allow top bar to fade in. Transitions don't work if display is none */
-  padding: 0;
-  overflow: hidden;
-  display: block;
-}
-
-#loadingModal #loadingModalContent {
+.loadingModal .loadingModalContent {
   position: absolute;
   right: 0;
   left: 0;
   top: 50%;
   margin-top: 117px;
-  opacity: 1;
+  opacity: 0;
   transition: opacity 1s 5s ease;
   box-sizing: border-box;
   padding: 9px;
   text-align: center;
 }
 
-#loadingModal #loadingModalBtns {
-  opacity: 1;
-  transition: opacity 1s 5s ease;
-  /* this seems redundant, but if you don't also have a transition on the button container, for some reason the normal
-  background color will be used instead of the background color from the custCol-secondary class until the parent
-  transition is complete on Win64 10. */
-}
-
-#loadingModal.hide #loadingModalContent,
-#loadingModal.hide #loadingModalBtns {
-  opacity: 0;
+#ov1 .server-connect-modal {
+  z-index: 10; /* slightly hacky way to resolve problems when loading modal is in front of the server connect modal*/
 }
 
 #ov1 .server-connect-modal .modal-child {
   height: 625px;
-  overflow: hidden;
 }
 
 #ov1 .server-connect-modal .message-bar {
@@ -4821,6 +4818,59 @@ input[type="checkbox"].fieldItem:checked + label .togLabelOff {
   right: 303px;
 }
 
+.userShort {
+  border-bottom: solid 1px rgba(255,255,255,0.08);
+  box-sizing: border-box;
+}
+
+.userShort .userShortWrapper {
+  padding: 20px 15px;
+}
+
+.userList .userShort {
+  height: 116px; /* fix the height to prevent a reflow when the wrapper is hidden */
+}
+
+.userList .userShort.outOfScroll .userShortWrapper {
+  display: none;
+}
+
+.addressBox {
+  padding: 10px;
+  font-size: 15px;
+  border-radius: 3px;
+  min-height: 120px;
+  position: relative;
+}
+
+.addressBoxDragging .addressBox{
+  border-width: 2px;
+  border-style: solid;
+}
+
+.addressBoxGhost .addressBox{
+  border-width: 2px;
+  border-style: dashed;
+}
+
+.addressesWrapper .addressBox .defaultLabel {
+  display: none;
+}
+
+.addressesWrapper:first-child .addressBox .defaultLabel {
+  display: block;
+}
+
+.buyAddressWrapper {
+  padding: 15px;
+    word-wrap: break-word;
+}
+
+.payAddressWrapper {
+    padding: 20px 15px;
+    word-wrap: break-word;
+}
+
 /*========== utility classes ==========*/
 
 /* the #ov1 id is on the HTML tag. It is used to force specificity
@@ -4903,7 +4953,6 @@ input[type="checkbox"].fieldItem:checked + label .togLabelOff {
 #ov1 .positionBottom {
   position: absolute;
   bottom: 0;
-  right: 0;
 }
 
 #ov1 .positionTop {
@@ -5006,6 +5055,7 @@ input[type="checkbox"].fieldItem:checked + label .togLabelOff {
   background: none;
   box-shadow: none;
   border: none;
+  padding: 0;
 }
 
 #ov1 .overflowHidden {
@@ -5425,6 +5475,10 @@ input[type="checkbox"].fieldItem:checked + label .togLabelOff {
 
 #ov1  .marginTopNeg8 {
   margin-top: -8px;
+}
+
+#ov1  .marginTop0 {
+  margin-top: 0px;
 }
 
 #ov1  .marginTop1 {
@@ -6104,8 +6158,6 @@ input[type="checkbox"].fieldItem:checked + label .togLabelOff {
   margin-right: auto;
 }
 
-
-
 #ov1 .heightAuto {
   height: auto;
 }
@@ -6113,6 +6165,7 @@ input[type="checkbox"].fieldItem:checked + label .togLabelOff {
 #ov1 .editableContent img {
   max-width: 100%;
   max-height: 100%;
+  height: auto;
 }
 
 /* add formChecked class after form has been checked for validity */
@@ -6187,8 +6240,6 @@ input[type="checkbox"].fieldItem:checked + label .togLabelOff {
 #ov1.minEffects #overlay,
 #ov1.minEffects #sideBar,
 #ov1.minEffects #pageNav,
-#ov1.minEffects #modalHolder,
-#ov1.minEffects #messageModal,
 #ov1.minEffects #statusBar {
   transition: none !important;
   -webkit-filter: none !important;
@@ -6303,8 +6354,6 @@ input[type="checkbox"].fieldItem:checked + label .togLabelOff {
 #ov1.minEffects #overlay .disabled,
 #ov1.minEffects #sideBar .disabled,
 #ov1.minEffects #pageNav .disabled,
-#ov1.minEffects #modalHolder .disabled,
-#ov1.minEffects #messageModal .disabled,
 #ov1.minEffects #statusBar .disabled {
   opacity: 0.2 !important;
 }
@@ -6315,8 +6364,6 @@ input[type="checkbox"].fieldItem:checked + label .togLabelOff {
 #ov1.minEffects #overlay .disabled2,
 #ov1.minEffects #sideBar .disabled2,
 #ov1.minEffects #pageNav .disabled2,
-#ov1.minEffects #modalHolder .disabled2,
-#ov1.minEffects #messageModal .disabled2,
 #ov1.minEffects #statusBar .disabled2 {
   opacity: 0.7 !important;
 }
@@ -6326,28 +6373,20 @@ input[type="checkbox"].fieldItem:checked + label .togLabelOff {
 }
 
 /* add a shadow and a glow, so modal close buttons are still barely visible if the user picks a bad color */
-#ov1 .js-closeIndexModal [class *= "ion-"]:before,
-#ov1 #userPage .js-closeIndexModal [class *= "ion-"]:before,
-#ov1 #obContainer .js-closeIndexModal [class *= "ion-"]:before,
-#ov1 #modalHolder .js-closeIndexModal [class *= "ion-"]:before,
-#ov1 #messageModal .js-closeIndexModal [class *= "ion-"]:before,
-#ov1.minEffects .js-closeIndexModal [class *= "ion-"]:before,
-#ov1.minEffects #userPage .js-closeIndexModal [class *= "ion-"]:before,
-#ov1.minEffects #obContainer .js-closeIndexModal [class *= "ion-"]:before,
-#ov1.minEffects #modalHolder .js-closeIndexModal [class *= "ion-"]:before,
-#ov1.minEffects #messageModal .js-closeIndexModal [class *= "ion-"]:before,
 #ov1 .js-modal-close [class *= "ion-"]:before,
 #ov1 #userPage .js-modal-close [class *= "ion-"]:before,
 #ov1 #obContainer .js-modal-close [class *= "ion-"]:before,
-#ov1 #modalHolder .js-modal-close [class *= "ion-"]:before,
-#ov1 #messageModal .js-modal-close [class *= "ion-"]:before,
+#ov1 #userPage .btn.btn-c1 [class *= "ion-"]:before,
 #ov1.minEffects .js-modal-close [class *= "ion-"]:before,
 #ov1.minEffects #userPage .js-modal-close [class *= "ion-"]:before,
 #ov1.minEffects #obContainer .js-modal-close [class *= "ion-"]:before,
-#ov1.minEffects #modalHolder .js-modal-close [class *= "ion-"]:before,
-#ov1.minEffects #messageModal .js-modal-close [class *= "ion-"]:before,
-#ov1 #modalHolder .js-closeBuyWizardModal [class *= "ion-"]:before {
+#ov1.minEffects #userPage .btn.btn-c1 [class *= "ion-"]:before {
   text-shadow: 0 0 1px rgba(0,0,0,1), 0 0 2px rgba(255,255,255, 1) !important;
+}
+
+
+#ov1 #userPage .btn.btn-c1:not(.custCol-primary) [class *= "ion-"]:before {
+  color: #fff !important;
 }
 
 /* hide unfinished elements */

@@ -2,12 +2,12 @@
 
 var __ = require('underscore'),
     $ = require('jquery'),
+    app = require('../App').getApp(),
     loadTemplate = require('../utils/loadTemplate'),
     countriesModel = require('../models/countriesMd'),
     Taggle = require('taggle'),
     MediumEditor = require('medium-editor'),
     Sortable = require('sortablejs'),
-    messageModal = require('../utils/messageModal'),
     chosen = require('../utils/chosen.jquery.min.js'),
     validateMediumEditor = require('../utils/validateMediumEditor'),
     baseVw = require('./baseVw');
@@ -19,7 +19,7 @@ module.exports = baseVw.extend({
     'click #shippingFreeFalse': 'enableShippingPrice',
     'change .js-itemImageUpload': 'onImageFileChange',
     'dragover .js-photosModule': 'onPhotoDragOver',
-    'dragleave .js-photosModule': 'onPhotoDragLeave',    
+    'dragleave .js-photosModule': 'onPhotoDragLeave',
     'drop .js-photosModule': 'onPhotoDrop',
     'change #inputType': 'changeType',
     'click .js-editItemDeleteImage': 'deleteImage',
@@ -27,7 +27,8 @@ module.exports = baseVw.extend({
     'blur textarea': 'validateInput',
     'focus #inputExpirationDate': 'addDefaultTime',
     'click .js-itemEditClearDate': 'clearDate',
-    'change #shipsToRegions': 'selectRegions'
+    'change #shipsToRegions': 'selectRegions',
+    'click .js-clearShipsTo': 'clearShipsTo'
   },
 
   MAX_PHOTOS: 10,
@@ -48,15 +49,15 @@ module.exports = baseVw.extend({
     countryList.forEach(function(country) {
       allRegions.push(country.dataName);
     });
-    
+
     var europeanUnion = [
       'AUSTRIA', 'BELGIUM', 'BULGARIA', 'CROATIA', 'CYPRUS', 'CZECH_REPUBLIC', 'DENMARK', 'ESTONIA',
       'FINLAND', 'FRANCE', 'GERMANY', 'GREECE', 'HUNGARY', 'IRELAND', 'ITALY', 'LATVIA', 'LITHUANIA', 'LUXEMBOURG',
-      'MALTA', 'NETHERLANDS', 'POLAND', 'PORTUGAL', 'ROMANIA', 'SLOVAKIA', 'SLOVENIA', 'SPAIN', 'SWEDEN', 'UNITED_KINGDOM' 
+      'MALTA', 'NETHERLANDS', 'POLAND', 'PORTUGAL', 'ROMANIA', 'SLOVAKIA', 'SLOVENIA', 'SPAIN', 'SWEDEN', 'UNITED_KINGDOM'
     ];
-    
+
     var europeanEconomicArea = europeanUnion.concat(['ICELAND', 'LIECHTENSTEIN', 'NORWAY']);
-    
+
     this.regions = {
       'ALL': allRegions,
       'EUROPEAN_UNION': europeanUnion,
@@ -67,19 +68,22 @@ module.exports = baseVw.extend({
     this.defaultDate = nowDate.getFullYear() + "-" + padTime(nowMonth) + "-" + padTime(nowDate.getDate()) + "T" + padTime(nowDate.getHours()) + ":" + padTime(nowDate.getMinutes());
     this.imgHashes = this.model.get('vendor_offer').listing.item.image_hashes;
     __.bindAll(this, 'validateDescription');
-   
+
     self.model.set('expTime', self.model.get('vendor_offer').listing.metadata.expiry.replace(" UTC", ""));
+
+    this.maxTagChars = 40;
 
     this.listenTo(this.model, 'change:priceSet', this.render());
   },
 
   render: function(){
     var self = this;
-    
+
     loadTemplate('./js/templates/itemEdit.html', function(loadedTemplate) {
       var context = __.extend({}, self.model.toJSON(), {
         MAX_PHOTOS: self.MAX_PHOTOS,
-        images: self.imgHashes.map((hash) => self.getImageUrl(hash))
+        images: self.imgHashes.map((hash) => self.getImageUrl(hash)),
+        maxTagChars: self.maxTagChars
       });
 
       self.$el.html(loadedTemplate(context));
@@ -120,7 +124,7 @@ module.exports = baseVw.extend({
         }).change(function(e){
           self.shipsToChange(e);
         });
-        
+
         self.$('.chosenRegions').chosen({
           width: '100%',
           disable_search: true,
@@ -165,6 +169,17 @@ module.exports = baseVw.extend({
     var countries = new countriesModel();
     //make a copy of the countries array
     var countryList = countries.get('countries').slice(0);
+    let shipsFrom = this.$el.find('#shipsFrom');
+    __.each(countryList, function(countryFromList, i){
+      let content = !i ? countryFromList.name : window.polyglot.t(`countries.${countryFromList.dataName}`);
+
+      shipsFrom.append(
+          `<option value="${countryFromList.dataName}">${content}</option>`
+      );
+    });
+    //set to existing value, default to user's home country if no value is set
+    shipsFrom.val(this.model.get('vendor_offer').listing.shipping.shipping_origin || this.model.get('userCountry'));
+    //add the ALL option
     countryList.unshift({
       "name": window.polyglot.t('WorldwideShipping'),
       "dataName": "ALL",
@@ -198,6 +213,15 @@ module.exports = baseVw.extend({
         preserveCase: true,
         saveOnBlur: true,
         placeholder: window.polyglot.t('KeywordsPlaceholder'),
+        onBeforeTagAdd: (event, tag) => {
+          if (tag.length > self.maxTagChars) {
+            app.simpleMessageModal.open({
+              title: window.polyglot.t('errorMessages.tagIsTooLongHeadline'),
+              message: window.polyglot.t('errorMessages.tagIsTooLongBody', {smart_count: self.maxTagChars})
+            });
+            return false;
+          }
+        },
         onTagAdd: () => {
           this.$('#inputKeyword').removeClass('invalid');
         },
@@ -280,6 +304,10 @@ module.exports = baseVw.extend({
     this.$('.chosenRegions').trigger('chosen:updated');
   },
 
+  clearShipsTo: function(){
+    this.$('#shipsTo').val("").trigger('chosen:updated');
+  },
+
   addDefaultTime: function(){
     var timeInput = this.$el.find('#inputExpirationDate'),
         currentValue = timeInput.val();
@@ -292,7 +320,8 @@ module.exports = baseVw.extend({
   shipsToChange: function(e){
     var newVal = $(e.target).val() || [],
         newSelection = __.difference(newVal, this.prevShipsToVal),
-        wwNewIndex = newVal.indexOf('ALL');
+        wwNewIndex = newVal.indexOf('ALL'),
+        $shipsToWrapper = this.$('.js-shipToWrapper');
 
     //is the new value different from ALL?
     if (newSelection[0] != "ALL"){
@@ -309,9 +338,9 @@ module.exports = baseVw.extend({
     this.prevShipsToVal = newVal;
 
     if (newVal.length) {
-      this.$('.js-shipToWrapper').removeClass('invalid');
+      $shipsToWrapper.removeClass('invalid');
     } else {
-      this.$('.js-shipToWrapper').addClass('invalid');
+      $shipsToWrapper.addClass('invalid');
     }
   },
 
@@ -329,7 +358,7 @@ module.exports = baseVw.extend({
   onPhotoDragLeave: function(e) {
     this.$photosModule.removeClass('dragOver');
     e.preventDefault();
-  },  
+  },
 
   onPhotoDrop: function(e) {
     this.$photosModule.removeClass('dragOver');
@@ -339,6 +368,39 @@ module.exports = baseVw.extend({
 
   onImageFileChange: function() {
     this.resizeImage();
+  },
+
+  getOrientation: function(file, callback) {
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      const dataView = new DataView(e.target.result);  // eslint-disable-line no-undef
+      let offset = 2;
+
+      if (dataView.getUint16(0, false) != 0xFFD8) return callback(-2);
+
+      while (offset < dataView.byteLength) {
+        const marker = dataView.getUint16(offset, false);
+        offset += 2;
+        if (marker == 0xFFE1) {
+          if (dataView.getUint32(offset += 2, false) != 0x45786966) return callback(-1);
+          const little = dataView.getUint16(offset += 6, false) == 0x4949;
+          offset += dataView.getUint32(offset + 4, little);
+          const tags = dataView.getUint16(offset, little);
+          offset += 2;
+          for (var i = 0; i < tags; i++) {
+            if (dataView.getUint16(offset + (i * 12), little) == 0x0112) {
+              return callback(dataView.getUint16(offset + (i * 12) + 8, little));
+            }
+          }
+        } else if ((marker & 0xFF00) != 0xFF00) {
+          break;
+        } else {
+          offset += dataView.getUint16(offset, false);
+        }
+      }
+      return callback(-1);
+    };
+    reader.readAsArrayBuffer(file.slice(0, 64 * 1024));
   },
 
   resizeImage: function(imageFiles){
@@ -362,7 +424,11 @@ module.exports = baseVw.extend({
 
     if (this.imgHashes.length + imageFiles.length > this.MAX_PHOTOS) {
       imageFiles = imageFiles.slice(0, this.MAX_PHOTOS - this.imgHashes.length);
-      messageModal.show(window.polyglot.t('errorMessages.tooManyPhotosTitle'), window.polyglot.t('errorMessages.tooManyPhotosBody'));      
+
+      app.simpleMessageModal.open({
+        title: window.polyglot.t('errorMessages.tooManyPhotosTitle'),
+        message: window.polyglot.t('errorMessages.tooManyPhotosBody')
+      });
     }
 
     if (!imageFiles.length) return;
@@ -373,7 +439,13 @@ module.exports = baseVw.extend({
 
     __.each(imageFiles, function(imageFile){
       var newImage = document.createElement("img"),
-          ctx;
+          ctx,
+          orientation;
+
+      self.getOrientation(imageFile, function(val) {
+        if (val === -1) throw new Error('The image is undefined.');
+        orientation = val;
+      });
 
       newImage.src = imageFile.path;
 
@@ -397,6 +469,20 @@ module.exports = baseVw.extend({
         canvas.width = imgW;
         canvas.height = imgH;
         ctx = canvas.getContext('2d');
+        if (orientation > 4) {
+          canvas.width = imgH;
+          canvas.height = imgW;
+        }
+        switch (orientation) {
+          case 2: ctx.translate(imgW, 0);      ctx.scale(-1, 1); break;
+          case 3: ctx.translate(imgW, imgH);   ctx.rotate(Math.PI); break;
+          case 4: ctx.translate(0, imgH);      ctx.scale(1, -1); break;
+          case 5: ctx.rotate(0.5 * Math.PI);   ctx.scale(1, -1); break;
+          case 6: ctx.rotate(0.5 * Math.PI);   ctx.translate(0, -imgH); break;
+          case 7: ctx.rotate(0.5 * Math.PI);   ctx.translate(imgW, -imgH); ctx.scale(-1, 1); break;
+          case 8: ctx.rotate(-0.5 * Math.PI);  ctx.translate(-imgW, 0); break;
+          default: // do nothing
+        }
         ctx.drawImage(newImage, 0, 0, imgW, imgH);
         dataURI = canvas.toDataURL('image/jpeg', 0.7);
         dataURI = dataURI.replace(/^data:image\/(png|jpeg|webp);base64,/, "");
@@ -413,10 +499,13 @@ module.exports = baseVw.extend({
 
         if (errored === imageCount) {
           self.$el.find('.js-itemEditImageLoading').addClass('fadeOut');
-          messageModal.show(window.polyglot.t('errorMessages.unableToLoadImages', {smart_count: imageCount}));
+
+          app.simpleMessageModal.open({
+            title: window.polyglot.t('errorMessages.unableToLoadImages', {smart_count: imageCount})
+          });
         } else if (loaded === imageCount) {
           self.uploadImage(imageList);
-        }        
+        }
       };
     });
   },
@@ -424,7 +513,7 @@ module.exports = baseVw.extend({
   uploadImage: function(imageList){
     var self = this,
         formData = new FormData();
-    
+
     __.each(imageList, function(dataURL){
       formData.append('image', dataURL);
     });
@@ -452,7 +541,10 @@ module.exports = baseVw.extend({
           self.$el.find('.js-itemEditImageLoading').addClass("fadeOut");
           self.updateImages();
         } else if (data.success === false){
-          messageModal.show(window.polyglot.t('errorMessages.saveError'), "<i>" + data.reason + "</i>");
+          app.simpleMessageModal.open({
+            title: window.polyglot.t('errorMessages.saveError'),
+            message: '<i>' + data.reason + '</i>'
+          });
         }
       },
       error: function(jqXHR, status, errorThrown){
@@ -528,6 +620,8 @@ module.exports = baseVw.extend({
         keywordsArray = this.inputKeyword.getTagValues(),
         shipsToInput = this.$('#shipsTo'),
         invalidInputList = [],
+        maxQuantInput = this.$el.find('#inputMaxQuantity'),
+        tempDisabledFields = [],
         hasError;
 
     validateMediumEditor.checkVal(this.$('#inputDescription'));
@@ -544,11 +638,16 @@ module.exports = baseVw.extend({
 
     this.$el.find('#inputCurrencyCode').val(cCode);
     this.$el.find('#inputShippingCurrencyCode').val(cCode);
-    this.$el.find('#inputShippingOrigin').val(this.model.get('userCountry'));
     //convert number field to string field
     this.$el.find('#inputPrice').val(this.$el.find('#priceLocal').val());
     this.$el.find('#inputShippingDomestic').val(this.$el.find('#shippingPriceLocalLocal').val());
     this.$el.find('#inputShippingInternational').val(this.$el.find('#shippingPriceInternationalLocal').val());
+
+    // disable blank fields that cause errors if sent to the server
+    if (!maxQuantInput.val()) {
+      maxQuantInput.attr('disabled', true);
+      tempDisabledFields.push(maxQuantInput);
+    }
 
     formData = new FormData(submitForm);
 
@@ -614,13 +713,22 @@ module.exports = baseVw.extend({
           if (data.success === true) {
             self.trigger('saveNewDone', data.id);
           } else {
-            messageModal.show(window.polyglot.t('errorMessages.saveError'), "<i>" + data.reason + "</i>");
+            app.simpleMessageModal.open({
+              title: window.polyglot.t('errorMessages.saveError'),
+              message: '<i>' + data.reason + '</i>'
+            });
           }
         },
         error: function (jqXHR, status, errorThrown) {
           console.log(jqXHR);
           console.log(status);
           console.log(errorThrown);
+        },
+        complete: function(){
+          //re-enable any disabled fields
+          __.each(tempDisabledFields, function(jQObject){
+            jQObject.attr('disabled', false);
+          });
         }
       });
     }
@@ -632,12 +740,17 @@ module.exports = baseVw.extend({
       inputName = (($label = self.$("label[for='"+$(this).attr('id')+"']")).length && $label.text()) ||
         $(this).attr('data-label') || $(this).attr('id');
 
-      invalidInputList.push(inputName.trim())
+      invalidInputList.push(inputName.trim());
     });
 
     invalidInputList = __.uniq(invalidInputList);
-    messageModal.show(window.polyglot.t('errorMessages.saveError'), window.polyglot.t('errorMessages.missingError') +
-      '<br><i><br />' + invalidInputList.join('<br />') + '</i>');
+
+    app.simpleMessageModal.open({
+      title: window.polyglot.t('errorMessages.saveError'),
+      message: window.polyglot.t('errorMessages.missingError') + '<br><i><br />' +
+        invalidInputList.join('<br />') + '</i>'
+    });
+
     return $.Deferred().reject('failed form validation').promise();
   },
 

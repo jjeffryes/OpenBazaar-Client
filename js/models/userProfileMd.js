@@ -3,7 +3,8 @@
 var __ = require('underscore'),
     Backbone = require('backbone'),
     is = require('is_js'),
-    autolinker = require( '../utils/customLinker');
+    autolinker = require( '../utils/customLinker'),
+    sanitizeModel = require('../utils/sanitizeModel');
 
 module.exports = Backbone.Model.extend({
   defaults: {
@@ -42,9 +43,7 @@ module.exports = Backbone.Model.extend({
       secondary_color: "#317DB8",
       text_color: "#ffffff",
       background_color: "#063753",
-      pgp_key: "",
       nsfw: false,
-      location: "UNITED_STATES",
       avatar_hash: "",
       handle: "",
       public_key: ""
@@ -68,6 +67,8 @@ module.exports = Backbone.Model.extend({
   parse: function(response) {
     //first check to make sure server sent data in the response. Sometimes it doesn't.
     if (response.profile){
+
+      response.profile = sanitizeModel(response.profile);
 
       //check if colors are in hex, if not convert. This assumes non-hex colors are numbers or strings of numbers.
       response.profile.background_color = response.profile.background_color === 0 || response.profile.background_color ? this.convertColor(response.profile.background_color) : "#063753";
@@ -96,11 +97,6 @@ module.exports = Backbone.Model.extend({
       //if name comes back blank, set to random value
       if (!response.profile.name){
         response.profile.name = "ob" + Math.random().toString(36).slice(2);
-      }
-
-      //if no country, set to USA
-      if (!response.profile.location) {
-        response.profile.location = "UNITED_STATES";
       }
 
       //put a copy of the avatar outside of the profile object, so change events can be triggered for it

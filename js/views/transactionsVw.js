@@ -4,7 +4,7 @@ var __ = require('underscore'),
     Backbone = require('backbone'),
     $ = require('jquery'),
     loadTemplate = require('../utils/loadTemplate'),
-    messageModal = require('../utils/messageModal.js'),
+    app = require('../App.js').getApp(),
     setTheme = require('../utils/setTheme.js'),
     Papa = require('papaparse'),
     transactionsCl = require('../collections/transactionsCl'),
@@ -78,14 +78,12 @@ module.exports = pageVw.extend({
     }
 
     this.listenTo(window.obEventBus, "socketMessageReceived", this.handleSocketMessage);
-    this.listenTo(window.obEventBus, "orderModalClosed", function(){
-      this.orderID = "";
-      this.getData();
-    });
 
-    $('.js-loadingModal').removeClass("hide");
+    app.loadingModal.open();
+
     getBTPrice(this.cCode, function(btAve){
-      $('.js-loadingModal').addClass("hide");
+      app.loadingModal.close();
+
       self.btAve = btAve;
       self.purchasesCol = new transactionsCl(null, {btAve: btAve, cCode: self.cCode});
       self.purchasesCol.url = self.serverUrl + "get_purchases";
@@ -108,15 +106,17 @@ module.exports = pageVw.extend({
         self.renderTab("purchases");
         self.salesCol.fetch({
           success: function(){
-            if (self.model.get('page').vendor) {
-              self.renderTab("sales");
-            }
+            self.renderTab("sales");
             self.casesCol.fetch({
               success: function() {
                 self.renderTab("cases");
               },
               error: function(jqXHR, status, errorThrown){
-                messageModal.show(window.polyglot.t('errorMessages.getError'), "<i>" + errorThrown + "</i>");
+                app.simpleMessageModal.open({
+                  title: window.polyglot.t('errorMessages.getError'),
+                  message: '<i>' + errorThrown + '</i>'
+                });
+
                 console.log(jqXHR);
                 console.log(status);
                 console.log(errorThrown);
@@ -154,7 +154,11 @@ module.exports = pageVw.extend({
             });
           },
           error: function(jqXHR, status, errorThrown){
-            messageModal.show(window.polyglot.t('errorMessages.getError'), "<i>" + errorThrown + "</i>");
+            app.simpleMessageModal.open({
+              title: window.polyglot.t('errorMessages.getError'),
+              message: '<i>' + errorThrown + '</i>'
+            });
+
             console.log(jqXHR);
             console.log(status);
             console.log(errorThrown);
@@ -162,7 +166,11 @@ module.exports = pageVw.extend({
         });
       },
       error: function(jqXHR, status, errorThrown){
-        messageModal.show(window.polyglot.t('errorMessages.getError'), "<i>" + errorThrown + "</i>");
+        app.simpleMessageModal.open({
+          title: window.polyglot.t('errorMessages.getError'),
+          message: '<i>' + errorThrown + '</i>'
+        });
+
         console.log(jqXHR);
         console.log(status);
         console.log(errorThrown);
@@ -235,8 +243,9 @@ module.exports = pageVw.extend({
   transactionFilter: function(e){
     var searchBy = $(e.target).val();
 
+    this.filterBy = searchBy;
+
     if (searchBy == 'dateNewest' || searchBy == 'dateOldest'){
-      this.filterBy = searchBy;
       this.$('.js-'+this.state+' .search').val("");
       this.renderTab(this.state);
     } else if (searchBy != "all"){
@@ -262,7 +271,6 @@ module.exports = pageVw.extend({
   },
 
   renderTab: function(tabName, filterBy){
-
     var self = this,
         tabCollection = this[tabName + "Col"],
         tabWrapper = this[tabName + "Wrapper"];
@@ -277,8 +285,21 @@ module.exports = pageVw.extend({
 
     if (!filterBy || filterBy == "all"){
       tabCollection.comparator = function(model) {
-        //add 1 so unread:zero doesn't get dropped from the front of the string when it's changed to a number by the -
-        return -(String(model.get("unread")+1) + String(model.get("timestamp")));
+        //order the collection so items that are unread or have status updates are first
+        var status = model.get("status"),
+            flagStatus = false;
+
+        //only use the status_changed if the status matters to that tab
+        if (tabName == "purchases"){
+          flagStatus = status == 2 || status > 3;
+        } else if (tabName == "sales") {
+          flagStatus = status == 1 || status > 2;
+        } else {
+          flagStatus = true;
+        }
+
+        var attentionVal = model.get("unread") > 0 || model.get("status_changed") && flagStatus ? "2" : "1";
+        return -(String(attentionVal) + model.get("timestamp"));
       };
       tabCollection.sort();
     }
@@ -295,22 +316,21 @@ module.exports = pageVw.extend({
       tabCollection.sort();
     }
     tabCollection.each(function(model){
-      if (!filterBy || filterBy == "all" || filterBy == "dateNewest" || filterBy == "dateOldest") {
-        self.addTransaction(model, tabWrapper, tabName);
-      } else if (filterBy && filterBy != "dateNewest" && filterBy != "dateOldest" && model.get('status') == filterBy) {
-        self.addTransaction(model, tabWrapper, tabName);
-      }
+      self.addTransaction(model, tabWrapper, tabName);
     });
 
-    this.$el.find('.js-'+tabName+'Count').html(tabCollection.length);
+    this.$('.js-'+tabName+'Count').html(tabCollection.length);
 
-    this.$el.find('.js-' + tabName)
+    this.$('.js-' + tabName)
         .append(tabWrapper)
         .find('.js-unpaidCount').html(tabCollection.where({status: 0}).length)
         .end().find('.js-loadingMsg').addClass('hide');
 
     if (!tabCollection.length) {
-      this.$el.find('.js-' + tabName + ' .js-emptyMsg').removeClass('hide');
+      this.$('.js-' + tabName + ' .js-emptyMsg').removeClass('hide');
+    } else {
+      //if the tab is hidden because they have turned off their store or moderator status, but it has transactions, unhide it
+      this.$('.js-'+tabName+"Tab").removeClass('hide');
     }
 
     if (!tabWrapper.children().length){
@@ -319,6 +339,12 @@ module.exports = pageVw.extend({
     } else {
       if (this['searchTransactions_'+tabName]){
         this['searchTransactions_'+tabName].reIndex();
+        if (filterBy && filterBy != "all" && filterBy != "dateNewest" && filterBy != "dateOldest") {
+          //re-filter the list with new elements
+          this['searchTransactions_'+tabName].filter(function (item) {
+            return item.values().js_searchStatusNum == filterBy;
+          });
+        }
       } else {
         this['searchTransactions_'+tabName] = new window.List('transactions' + tabName.charAt(0).toUpperCase() + tabName.substr(1), {valueNames: ['js-searchOrderID', 'js-searchPrice', 'js-searchUser', 'js-searchStatus', 'js-searchTitle', 'js_searchStatusNum'], page: 1000});
       }
@@ -388,7 +414,11 @@ module.exports = pageVw.extend({
 
     return $.when.apply(null, calls)
         .fail(function(){
-          messageModal.show(window.polyglot.t('errorMessages.getError'), window.polyglot.t('errorMessages.serverError'));
+          app.simpleMessageModal.open({
+            title: window.polyglot.t('errorMessages.getError'),
+            message: window.polyglot.t('errorMessages.serverError')
+          });
+
           calls.forEach(call => {
             call.abort();
           });
@@ -397,7 +427,9 @@ module.exports = pageVw.extend({
           if (calls.length > 0){
             exportData(this.currentExportData);
           } else {
-            messageModal.show(window.polyglot.t('errorMessages.noData'));
+            app.simpleMessageModal.open({
+              title: window.polyglot.t('errorMessages.noData')
+            });
           }
         });
   },
@@ -427,7 +459,7 @@ module.exports = pageVw.extend({
         dataObject.quantity = data.buyer_order.order.quantity;
         if (data.buyer_order.order.shipping){
           var dShipping = data.buyer_order.order.shipping;
-          dataObject.shipping_address = dShipping.ship_to + " " + dShipping.address +", " + dShipping.city + ", " + dShipping.state + ", " + dShipping.postal_code + ", " + dShipping.country;
+          dataObject.shipping_address = dShipping.ship_to + " " + dShipping.address +", " + dShipping.city + ", " + dShipping.state + ", " + dShipping.postal_code + ", " + dShipping.order + ", " + dShipping.country;
         }
         dataObject.payment_amount = dPayment.amount;
         dataObject.payment_address = dPayment.address;
@@ -450,7 +482,7 @@ module.exports = pageVw.extend({
       if (data.vendor_offer.policy){
         dataObject.return_policy = data.vendor_offer.policy.returns;
       }
-      
+
       this.currentExportData.push(dataObject);
     });
 
@@ -458,15 +490,17 @@ module.exports = pageVw.extend({
   },
 
   openOrderModal: function(options){
-    $('.js-loadingModal').removeClass("hide");
+    app.loadingModal.open({ insideApp: true });
+
     if (options.status == "open"){
       options.status = 4;
     }
-    var orderModalView = new transactionModalVw({
+
+    this.orderModalView && this.orderModalView.remove();
+    this.orderModalView = new transactionModalVw({
       orderID: options.orderID,
       status: options.status,
       serverUrl: this.serverUrl,
-      parentEl: $('#modalHolder'),
       countriesArray: this.countriesArray,
       cCode: this.userModel.get('currency_code'),
       btAve: this.btAve,
@@ -477,7 +511,15 @@ module.exports = pageVw.extend({
       userProfile: this.userProfile,
       socketView: this.socketView,
       unread: options.unread
+    }).on('loaded', () => {
+      app.loadingModal.close();
+      this.orderModalView.render().open();
+    }).on('close', () => {
+      this.orderID = '';
+      this.getData();
+      this.orderModalView.remove();
     });
-    this.registerChild(orderModalView);
+
+    this.registerChild(this.orderModalView);
   }
 });

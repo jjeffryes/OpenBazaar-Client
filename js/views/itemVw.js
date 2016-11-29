@@ -61,8 +61,10 @@ module.exports = baseVw.extend({
 
     this.shippingRegions = this.model.get('vendor_offer').listing.shipping.shipping_regions;
     this.shippingOrigin = this.model.get('vendor_offer').listing.shipping.shipping_origin;
+    this.shipsLocal = this.shippingRegions.indexOf(this.shippingOrigin) > -1;
+    this.nonLocalRegions = __.without(this.shippingRegions, this.shippingOrigin);
     this.worldwide = this.shippingRegions.length === 1 && this.shippingRegions[0] === 'ALL';
-    
+
     this.render();
   },
 
@@ -89,7 +91,7 @@ module.exports = baseVw.extend({
       var imageExtension = self.model.get('imageExtension') || "";
     });
     */
-    
+
     //el must be passed in from the parent view
     loadTemplate('./js/templates/item.html', function(loadedTemplate) {
       loadTemplate('./js/templates/ratingStars.html', function(starsTemplate) {
@@ -105,6 +107,8 @@ module.exports = baseVw.extend({
               userCountry: window.polyglot.t(`countries.${self.userModel.get('country')}`),
               shippingRegionsDisplay: localize.localizeShippingRegions(self.shippingRegions),
               worldwide: self.worldwide,
+              shipsLocal: self.shipsLocal,
+              nonLocalRegions: self.nonLocalRegions,
               displayShippingOrigin: self.shippingOrigin && window.polyglot.t(`countries.${self.shippingOrigin}`)
             })
           )
@@ -128,12 +132,12 @@ module.exports = baseVw.extend({
   photoGalleryClick: function(){
     $('.js-photoGallery').colorbox({
       'transition': 'fade',
-      'rel': 'js-photoGallery', 
+      'rel': 'js-photoGallery',
       'photo': true,
       'fadeOut': 0,
       'previous': '<span class="arrowIcon ion-ios-arrow-back"></span>',
       'next': '<span class="arrowIcon ion-ios-arrow-forward"></span>',
-      'current': '{current} ' + window.polyglot.t('of') + ' {total}',
+      'current':  window.polyglot.t('pageXofY', {currentPage: '{current}', totalPages: '{total}'}),
       'close': window.polyglot.t('Close'),
       'maxHeight': '620px',
       'opacity': '.95',
@@ -176,9 +180,9 @@ module.exports = baseVw.extend({
     this.buyWizardView && this.buyWizardView.remove();
     this.buyWizardView = new buyWizardVw({model: this.model, userModel: this.options.userModel, worldwide: this.worldwide, shippingRegions: this.shippingRegions});
     this.registerChild(this.buyWizardView);
-    $('#modalHolder').html(this.buyWizardView.el).fadeIn(300); //add to DOM first, or accordion will have zero width when initialized
-    this.buyWizardView.render();
-    $('#obContainer').addClass('modalOpen').scrollTop(0);
+    this.buyWizardView.on('close', () => this.buyWizardView.remove())
+      .render()
+      .open();
   },
 
   clickItemRating: function() {

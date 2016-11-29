@@ -46,11 +46,13 @@ var Polyglot = require('node-polyglot'),
     socketView = require('./views/socketVw'),
     cCode = "",
     $html = $('html'),
-    $loadingModal = $('.js-loadingModal'),
+    LoadingModal = require('./views/loadingModal'),
+    SimpleMessageModal = require('./views/simpleMessageModal'),
     ServerConfigsCl = require('./collections/serverConfigsCl'),
     ServerConnectModal = require('./views/serverConnectModal'),
     OnboardingModal = require('./views/onboardingModal'),
-    PageConnectModal = require('./views/pageConnectModal'), 
+    PageConnectModal = require('./views/pageConnectModal'),
+    Dialog = require('./views/dialog.js'),
     loadProfileNeeded = true,
     startUpConnectMaxRetries = 2,
     startUpConnectRetryDelay = 2 * 1000,
@@ -59,16 +61,17 @@ var Polyglot = require('node-polyglot'),
     startUpRetry,
     removeStartupRetry,
     onActiveServerSync,
-    extendPolyglot,
     newPageNavView,
     newSocketView,
+    startUpLoadingModal,
     onboardingModal,
     pageConnectModal,
     launchOnboarding,
     setServerUrl,
     guidCreating,
     platformClass,
-    updatePolyglot;
+    updatePolyglot,
+    validateLanguage;
 
 if (process.platform === 'darwin') {
   platformClass = 'platform-mac';
@@ -82,33 +85,40 @@ if (process.platform === 'darwin') {
 
 $html.addClass(platformClass);
 
-//put language in the window so all templates and models can reach it. It's especially important in formatting currency.
-//retrieve the stored value, since user is a blank model at this point
-window.lang = localStorage.getItem('lang') || "en-US";
-
-//put polyglot in the window so all templates can reach it
-window.polyglot = new Polyglot({locale: window.lang});
-
-(extendPolyglot = function() {
-  // Make sure the language exists in the languages model
-  if (__.where(languages.get('languages'), {langCode: window.lang}).length) {
-    var language = require('./languages/' + window.lang + '.json');
-
-    window.polyglot.extend(language);
+validateLanguage = function(lang){
+  //check to see if the language exists in the language model
+  if (__.where(languages.get('languages'), {langCode: lang}).length) {
+    return lang;
   }
-})(window.lang);
-
-updatePolyglot = function(lang){
-  window.lang = lang;
-  extendPolyglot(lang);
-  localStorage.setItem('lang', lang);
-  //trigger translation function on index
-  window.translateIndex();
+  return "en-US"; //if language is not found, use English
 };
 
+//put polyglot in the window so all templates can reach it
+window.polyglot = new Polyglot();
+
+(updatePolyglot = function(lang){
+  lang = validateLanguage(lang);//make sure the language is valid
+  window.lang = lang; //put language in the window so all templates and models can reach it. It's especially important in formatting currency.
+  localStorage.setItem('lang', lang);
+  window.polyglot.extend(require('./languages/' + lang + '.json'));
+})(localStorage.getItem('lang'));
+
 user.on('change:language', function(md, lang) {
+  // Re-starting the app on lang change. For now leaving in the code in various global views
+  // that deals with lang change.
+  // TODO: Once it looks like the restart on lang change approach is fine, go into the different
+  // views and cleanup any code dealing with lang change.
+
   updatePolyglot(lang);
 });
+
+//put the event bus into the window so it's available everywhere
+window.obEventBus = __.extend({}, Backbone.Events);
+
+startUpLoadingModal = new LoadingModal({
+  showLoadIndexButton: false
+});
+startUpLoadingModal.render().open();
 
 // add in our app bar
 app.appBar = new AppBarVw({
@@ -135,7 +145,7 @@ app.serverConfigs.fetch().done(() => {
     // old single config set-up (_serverConfig-1)
     if (oldConfig = localStorage['_serverConfig-1']) { // eslint-disable-line no-cond-assign
       oldConfig = JSON.parse(oldConfig);
-      
+
       // don't create a ported connection if it's the same as the default one
       if (
         oldConfig.server_ip +
@@ -154,7 +164,7 @@ app.serverConfigs.fetch().done(() => {
               __.omit(oldConfig, ['local_username', 'local_password', 'id']),
               { name: window.polyglot.t('serverConnectModal.portedConnectionName') }
             )
-          ).id          
+          ).id
         );
       }
 
@@ -167,14 +177,14 @@ app.serverConfigs.fetch().done(() => {
     } else {
       app.serverConfigs.setActive(defaultConfig.id);
     }
-  }  
+  }
 });
 
 ipcRenderer.send('activeServerChange', app.serverConfigs.getActive().toJSON());
 
 app.serverConfigs.on('activeServerChange', (server) => {
   ipcRenderer.send('activeServerChange', server.toJSON());
-});  
+});
 
 //keep user and profile urls synced with the active server configuration
 (setServerUrl = function() {
@@ -193,9 +203,6 @@ app.serverConfigs.on('activeServerChange', () => {
   setServerUrl();
   app.serverConfigs.getActive().off('sync', onActiveServerSync);
 });
-
-//put the event bus into the window so it's available everywhere
-window.obEventBus = __.extend({}, Backbone.Events);
 
 // fix zoom issue on Linux hiDPI
 var platform = process.platform;
@@ -252,7 +259,9 @@ $(document).on('mouseleave', 'a[data-href-tooltip]', function() {
 
 //record changes to the app state
 $(window).bind('hashchange', function(){
-  localStorage.setItem('route', Backbone.history.getFragment());
+   const host = encodeURIComponent(app.serverConfigs.getActive().getServerBaseUrl());
+   const route =  Backbone.history.getFragment();
+  localStorage.setItem(host, route);
 });
 
 //set minimized effects styles class
@@ -336,9 +345,16 @@ $(window).bind('keydown', function(e) {
 
     if (route !== null) {
       e.preventDefault();
-      Backbone.history.navigate(route, {
-        trigger: true
-      });
+
+      if (location.hash.startsWith('#' + route)) {
+        // Hard refresh if we're already on the page we're trying to route to
+        // so a cached page is not served.
+        app.router.refresh();
+      } else {
+        Backbone.history.navigate(route, {
+          trigger: true
+        });
+      }
     }
   }
 });
@@ -408,7 +424,7 @@ var loadProfile = function(landingRoute, onboarded) {
                 userProfile: userProfile,
                 showDiscIntro: onboarded
               });
-              
+
               newPageNavView.render();
 
               app.chatVw = new ChatVw({
@@ -417,6 +433,62 @@ var loadProfile = function(landingRoute, onboarded) {
               });
 
               $('#sideBar').html(app.chatVw.render().el);
+              startUpLoadingModal.remove();
+
+              // setting up a loadingModal instance that can be used app-wide as necessary.
+              app.loadingModal = new LoadingModal({
+                dismissOnOverlayClick: false,
+                dismissOnEscPress: false,
+                showCloseButton: false
+              }).render();
+              app.loadingModal.__origRemove = app.loadingModal.remove;
+              app.loadingModal.remove = () => {
+                throw new Error('This instance of the loadingModal is globally shared ' +
+                  'and should not be removed. When you are done with it, please close it.');
+              };
+
+              // setting up a simpleMessageModal instance that can be used app-wide as necessary.
+              app.simpleMessageModal = new SimpleMessageModal({
+                removeOnClose: false
+              });
+              app.simpleMessageModal.__origRemove = app.simpleMessageModal.remove;
+              app.simpleMessageModal.remove = () => {
+                throw new Error('This instance of the simpleMessageModal is globally shared ' +
+                  'and should not be removed. When you are done with it, please close it.');
+              };
+
+              // any lang changes after our app has loaded will need an app re-start to fully take effect
+              user.on('change:language', function() {
+                var restartWarning;
+
+                restartWarning = new Dialog({
+                  title: window.polyglot.t('langChangeRestartTitle'),
+                  message: window.polyglot.t('langChangeRestartMessage'),
+                  buttons: [{
+                    text: 'Restart Later',
+                    fragment: 'restart-later'
+                  }, {
+                    text: 'Restart Now',
+                    fragment: 'restart-now'
+                  }]
+                }).on('click-restart-later', () => {
+                  restartWarning.close();
+                }).on('click-restart-now', () => {
+                  location.reload();
+                }).render().open();
+              });
+
+              // If navigating to a page you're already on, we'll hard refresh so
+              // a cached page is not served, which avoids the issue of it looking
+              // like nothing happened.
+              $(document).on('click', '[href^="#"]', (e) => {
+                var href = $(e.target).attr('href');
+
+                if (location.hash.startsWith(href)) {
+                  app.router.refresh();
+                  e.preventDefault();
+                }
+              });
 
               app.router = new router({userModel: user, userProfile: userProfile, socketView: newSocketView});
 
@@ -467,16 +539,20 @@ launchOnboarding = function(guidCreating) {
   onboardingModal = new OnboardingModal({
     model: user,
     userProfile: userProfile,
-    guidCreationPromise: guidCreating
+    guidCreationPromise: guidCreating,
+    dismissOnOverlayClick: false,
+    dismissOnEscPress: false,
+    showCloseButton: false
   });
   onboardingModal.render().open();
+  startUpLoadingModal.close();
 
   onboardingModal.on('onboarding-complete', function(guid) {
     app.serverConnectModal.succeedConnection(app.serverConfigs.getActive());
     onboardingModal && onboardingModal.remove();
     onboardingModal = null;
     loadProfile('#userPage/' + guid + '/store', true);
-    $loadingModal.removeClass('hide');
+    startUpLoadingModal.open();
   });
 };
 
@@ -485,7 +561,7 @@ launchOnboarding = function(guidCreating) {
   var activeServer = app.serverConfigs.getActive();
 
   pageConnectModal = new PageConnectModal({
-    className: 'server-connect modal-fullscreen',
+    className: 'server-connect',
     initialState: {
       statusText: activeServer && activeServer.get('default') ?
         window.polyglot.t('serverConnectModal.connectingToDefault') :
@@ -520,7 +596,7 @@ app.serverConnectModal.on('connected', () => {
 app.getHeartbeatSocket().on('open', function() {
   removeStartupRetry();
   pageConnectModal.remove();
-  $loadingModal.removeClass('hide');
+  startUpLoadingModal.open();
 
   if (!profileLoaded) {
     // clear some flags so the heartbeat events will
@@ -528,8 +604,8 @@ app.getHeartbeatSocket().on('open', function() {
     guidCreating = null;
     loadProfileNeeded = true;
     app.serverConnectModal.close();
-    $loadingModal.removeClass('hide');    
-  }  
+    startUpLoadingModal.open();
+  }
 });
 
 app.getHeartbeatSocket().on('close', startUpRetry = function() {
@@ -552,7 +628,7 @@ removeStartupRetry = function() {
   app.getHeartbeatSocket().off('close', startUpRetry);
   app.getHeartbeatSocket().on('close', () => {
     app.serverConnectModal.failConnection(null, app.serverConfigs.getActive());
-    
+
     if (app.serverConnectModal.getConnectAttempt()) {
       app.serverConnectModal.getConnectAttempt()
         .fail(() => {
@@ -560,7 +636,7 @@ removeStartupRetry = function() {
         });
     } else {
       app.serverConnectModal.open();
-    }      
+    }
   });
 };
 
@@ -618,7 +694,7 @@ app.getHeartbeatSocket().on('message', function(e) {
             app.serverConnectModal.failConnection(
                 data.reason === 'too many attempts' ? 'failed-auth-too-many' : 'failed-auth',
                 app.serverConfigs.getActive()
-              ).open();              
+              ).open();
           }
         }).fail(function() {
           app.serverConnectModal.failConnection(null, app.serverConfigs.getActive())

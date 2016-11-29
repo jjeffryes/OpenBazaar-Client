@@ -10,7 +10,7 @@ var __ = require('underscore'),
     itemShortModel = require('../models/itemShortMd'),
     userShortView = require('./userShortVw'),
     userShortModel = require('../models/userShortMd'),
-    messageModal = require('../utils/messageModal.js');
+    Dialog = require('../views/dialog.js');
 
 module.exports = pageVw.extend({
 
@@ -18,7 +18,6 @@ module.exports = pageVw.extend({
 
   events: {
     'click .js-productsTab': function(){this.setState("products");},
-    'click .js-feedTab': function(){this.setState("feed");},
     'click .js-vendorsTab': function(){this.setState("vendors");},
     'click .js-homeCreateStore': 'createStore',
     'click .js-homeCreateListing': 'createListing',
@@ -51,6 +50,7 @@ module.exports = pageVw.extend({
     this.onlyFollowing = true;
     this.showNSFW = JSON.parse(localStorage.getItem('NSFWFilter'));
     this.cachedScrollPositions = {};
+    this.loadedUsers = [];
 
     this.model.set({user: this.options.userModel.toJSON(), page: this.userProfile.toJSON()});
 
@@ -97,7 +97,7 @@ module.exports = pageVw.extend({
     }
 
     this.obContainer.on('scroll', this.scrollHandler);
-  },  
+  },
 
   onCacheWillDetach: function(e) {
     if (e.view !== this) return;
@@ -107,6 +107,10 @@ module.exports = pageVw.extend({
 
   onCacheDetached: function(e) {
     if (e.view !== this) return;
+
+    if (this.safeListingsDialog) {
+      this.safeListingsDialog.close();
+    }
 
     this.obContainer.off('scroll', this.scrollHandler);
   },
@@ -144,7 +148,7 @@ module.exports = pageVw.extend({
       if ($('.homeGridItems .gridItem').length === 0){
         self.$el.find('.js-loadingMessage').removeClass('fadeOut');
         self.$el.find('.js-loadingMessage .spinner').addClass('fadeOut');
-        
+
         if (self.searchItemsText) {
           self.$el.find('.js-loadingText').html(
             window.polyglot.t('discover.noTaggedResults')
@@ -164,8 +168,8 @@ module.exports = pageVw.extend({
   },
 
   hideList: function(){
-    this.$('.js-feed, .js-products, .js-vendors, .js-productsSearch').addClass('hide');
-    this.$('.js-productsTab, .js-vendorsTab, .js-feedTab').removeClass('active');
+    this.$('.js-products, .js-vendors, .js-productsSearch').addClass('hide');
+    this.$('.js-productsTab, .js-vendorsTab').removeClass('active');
   },
 
   resetLookingCount: function(){
@@ -183,7 +187,7 @@ module.exports = pageVw.extend({
       this.loadingVendors = false;
       this.renderUser(data.vendor);
     }
-    
+
     this.resetLookingCount();
   },
 
@@ -265,7 +269,7 @@ module.exports = pageVw.extend({
 
     item.ownFollowing = this.ownFollowing.indexOf(item.guid) != -1;
 
-    blocked = this.userModel.get('blocked_guids') || [];    
+    blocked = this.userModel.get('blocked_guids') || [];
     item.isBlocked = blocked.indexOf(item.guid) !== -1;
 
     var newItem = function(){
@@ -311,6 +315,12 @@ module.exports = pageVw.extend({
         newUserModel,
         storeShort;
 
+    //don't load duplicates
+    if (this.loadedUsers.indexOf(user.guid) !== -1){
+      return;
+    }
+    this.loadedUsers.push(user.guid);
+
     if (blocked.indexOf(user.guid) !== -1) return;
 
     if (user.nsfw && !this.showNSFW) return;
@@ -320,10 +330,7 @@ module.exports = pageVw.extend({
     user.serverUrl = this.userModel.get('serverUrl');
     user.userID = user.guid;
     user.avatarURL = this.userModel.get('serverUrl')+"get_image?hash="+user.avatar_hash+"&guid="+user.guid;
-    
-    if (this.ownFollowing.indexOf(user.guid) != -1){
-      user.ownFollowing = true;
-    }
+    user.ownFollowing = this.ownFollowing.indexOf(user.guid) != -1;
 
     newUserModel = new userShortModel(user);
     storeShort = new userShortView({model: newUserModel});
@@ -333,7 +340,7 @@ module.exports = pageVw.extend({
         self.removeUserView(storeShort);
       }
     });
-    
+
     this.$el.find('.js-vendors .js-loadingSpinner').before(storeShort.el);
     this.registerChild(storeShort);
     this.userViews.push(storeShort);
@@ -424,7 +431,7 @@ module.exports = pageVw.extend({
         console.log(status);
         console.log(errorThrown);
       }
-    });    
+    });
   },
 
   followUser: function(options){
@@ -542,15 +549,15 @@ module.exports = pageVw.extend({
   searchItems: function(searchItemsText){
     if (searchItemsText){
       var hashedItem = "#" + searchItemsText;
-      
+
       window.obEventBus.trigger('searchingText', hashedItem);
-      
+
       this.searchItemsText = searchItemsText;
       this.clearItems();
       this.socketItemsID = "";
       this.socketSearchID = Math.random().toString(36).slice(2);
       this.socketView.search(this.socketSearchID, searchItemsText);
-      this.setSocketTimeout();      
+      this.setSocketTimeout();
       this.$el.find('.js-discoverHeading').html(hashedItem);
       this.$el.find('.js-loadingText').html(
         this.$el.find('.js-loadingText')
@@ -558,7 +565,7 @@ module.exports = pageVw.extend({
           .replace('%{tag}', `<span class="btn-pill color-secondary">${hashedItem}</span>`)
       );
       this.$el.find('.js-homeSearchItemsClear').removeClass('hide');
-      this.$el.find('.js-homeSearchItems').val("#" + searchItemsText)
+      this.$el.find('.js-homeSearchItems').val("#" + searchItemsText);
       this.setState('products', searchItemsText);
     } else {
       this.searchItemsClear();
@@ -582,7 +589,7 @@ module.exports = pageVw.extend({
     count = count || 0;
     if (this._blockedItemCount === count) return;
     this._blockedItemCount = count;
-    
+
     if (count) {
       text = count + ' blocked item' + (count !== 1 ? 's' : '') + ' not shown';
     }
@@ -634,31 +641,34 @@ module.exports = pageVw.extend({
   },
 
   loadAllItems: function(){
-    var self = this;
     if (localStorage.getItem('safeListingsWarningDissmissed')){
       this.onlyFollowing = false;
       this.loadItemsOrSearch();
     } else {
-      messageModal.show(
-          window.polyglot.t('ViewUnfilteredListings'),
-          window.polyglot.t('AllListingsWarning'),
-          'modal-hero bg-dark-blue iconBackground',
-          'modal-msg custCol-secondary',
-          function(){
-            messageModal.hide();
-          },
-          window.polyglot.t('Cancel'),
-          'txt-center',
-          function(){
-            localStorage.setItem('safeListingsWarningDissmissed', true);
-            self.$('.js-discoverToggleHelper').addClass('hide');
-            self.loadAllItems();
-            messageModal.hide();
-            self.setListingsAll();
-          },
-          window.polyglot.t('ShowUnlfilteredListings'),
-          'txt-center'
-      );
+      this.safeListingsDialog = new Dialog({
+        title: window.polyglot.t('ViewUnfilteredListings'),
+        message: window.polyglot.t('AllListingsWarning'),
+        titleClass: 'modal-hero bg-dark-blue iconBackground',
+        messageClass: 'modal-msg custCol-secondary',
+        buttons: [{
+          text: window.polyglot.t('Cancel'),
+          fragment: 'cancel'
+        }, {
+          text: window.polyglot.t('ShowUnlfilteredListings'),
+          fragment: 'showUnlfilteredListings'
+        }]
+      }).on('click-cancel', () => {
+        this.safeListingsDialog.close();
+      }).on('click-showUnlfilteredListings', () => {
+        localStorage.setItem('safeListingsWarningDissmissed', true);
+        this.$('.js-discoverToggleHelper').addClass('hide');
+        this.loadAllItems();
+        this.safeListingsDialog.close();
+        this.setListingsAll();
+      });
+
+      this.safeListingsDialog.render().open();
+      setTimeout(() => this.registerChild(this.safeListingsDialog));
     }
   },
 

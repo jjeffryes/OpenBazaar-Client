@@ -7,22 +7,21 @@ var __ = require('underscore'),
     pageVw = require('./pageVw'),
     domUtils = require('../utils/dom'),
     app = require('../App.js').getApp(),
-    timezonesModel = require('../models/timezonesMd'),
     languagesModel = require('../models/languagesMd.js'),
     usersCl = require('../collections/usersCl.js'),
     blockedUsersVw = require('./blockedUsersVw'),
     userShortView = require('./userShortVw'),
     userShortModel = require('../models/userShortMd'),
     countriesModel = require('../models/countriesMd'),
-    messageModal = require('../utils/messageModal.js'),
-    cropit = require('../utils/jquery.cropit'),
+    cropit = require('cropit'),
     chosen = require('../utils/chosen.jquery.min.js'),
     setTheme = require('../utils/setTheme.js'),
     saveToAPI = require('../utils/saveToAPI'),
     SMTPConnection = require('smtp-connection'),
     MediumEditor = require('medium-editor'),
     validateMediumEditor = require('../utils/validateMediumEditor'),
-    getBTPrice = require('../utils/getBitcoinPrice');
+    getBTPrice = require('../utils/getBitcoinPrice'),
+    Sortable = require('sortablejs');
 
 module.exports = pageVw.extend({
 
@@ -63,13 +62,13 @@ module.exports = pageVw.extend({
     'blur input': 'validateInput',
     'blur textarea': 'validateInput',
     'change #handle': 'handleChange',
-    'input #pgp_key': 'checkPGPKey'
+    'click .js-avatarRotateLeft': 'rotateAvatarLeft',
+    'click .js-avatarRotateRight': 'rotateAvatarRight',
   },
 
   initialize: function(options){
     var self = this;
 
-    $('.js-loadingModal').removeClass('hide');
     this.options = options || {};
     /* expected options:
      userModel
@@ -93,7 +92,10 @@ module.exports = pageVw.extend({
     this.oldFeeValue = options.userProfile.get('profile').moderation_fee || 0;
 
     this.firstLoadModerators = true;
-    
+
+    this.loading = true;
+    app.loadingModal.open();
+
     this.listenTo(window.obEventBus, 'saveCurrentForm', function(){
       switch (self.state) {
       case 'general':
@@ -129,8 +131,14 @@ module.exports = pageVw.extend({
 
     this.listenTo(app.router, 'cache-will-detach', this.onCacheWillDetach);
     this.listenTo(app.router, 'cache-detached', this.onCacheDetached);
-    this.listenTo(app.router, 'cache-reattached', this.onCacheReattached);    
+    this.listenTo(app.router, 'cache-reattached', this.onCacheReattached);
+
+    __.bindAll(this, 'validateDescription');
   },
+
+  // disabling caching on settings for now -- too much
+  // edge case overhead, like #1720
+  cacheExpires: 0,
 
   onCacheReattached: function(e) {
     var splitRoute = e.route.split('/'),
@@ -139,10 +147,13 @@ module.exports = pageVw.extend({
     if (e.view !== this) return;
     state = state || this.state;
 
+    this.loading && app.loadingModal.open();
+
     this.blockedUsersScrollHandler &&
       this.$obContainer.on('scroll', this.blockedUsersScrollHandler);
 
     if (this.cachedScrollPositions[state]) this.$obContainer[0].scrollTop = this.cachedScrollPositions[state];
+    this.setTheme();
     this.setState(state);
   },
 
@@ -155,19 +166,26 @@ module.exports = pageVw.extend({
   onCacheDetached: function(e) {
     if (e.view !== this) return;
 
+    app.loadingModal.close();
+
     this.blockedUsersScrollHandler &&
       this.$obContainer.off('scroll', this.blockedUsersScrollHandler);
-  },  
+  },
+
+  setTheme: function() {
+    var profile = this.userProfile.get('profile');
+
+    if (profile) {
+      setTheme(profile.primary_color, profile.secondary_color, profile.background_color, profile.text_color);
+    }
+  },
 
   fetchModel: function(){
     var self = this;
     this.firstLoadModerators = true;
     this.userProfile.fetch({
       success: function(model) {
-        var profile = model.get('profile');
-        if (profile){
-          setTheme(profile.primary_color, profile.secondary_color, profile.background_color, profile.text_color);
-        }
+        self.setTheme();
         self.model.set({page: model.toJSON()});
         self.userModel.fetch({
           success: function(model){
@@ -181,13 +199,16 @@ module.exports = pageVw.extend({
           }
         });
       },
-      error: function(model, response){
-        console.log(response);
-        messageModal.show(window.polyglot.t('errorMessages.getError'), window.polyglot.t('errorMessages.userError'));
+      error: function(){
+        app.simpleMessageModal.open({
+          title: window.polyglot.t('errorMessages.getError'),
+          message: window.polyglot.t('errorMessages.userError')
+        });
       },
       complete: function() {
         if (!self.isRemoved()) {
-          $('.js-loadingModal').addClass('hide');
+          app.loadingModal.close();
+          self.loading = false;
         }
       }
     });
@@ -195,8 +216,8 @@ module.exports = pageVw.extend({
 
   render: function(){
     var self = this;
-    this.shownMods = []; //reset to blank 
-    
+    this.shownMods = []; //reset to blank
+
     loadTemplate('./js/templates/settings.html', function(loadedTemplate) {
       self.$el.html(loadedTemplate(self.model.toJSON()));
       self.delegateEvents(); //delegate again for re-render
@@ -205,7 +226,7 @@ module.exports = pageVw.extend({
       self.newAvatar = false;
       self.newBanner = false;
       self.blockedTabAccessed = false;
-      self.setState(self.options.state);
+      self.setState(self.state || self.options.state);
 
       $(".chosen").chosen({
         width: '100%',
@@ -214,7 +235,10 @@ module.exports = pageVw.extend({
         placeholder_text_single: window.polyglot.t('chosenJS.placeHolderTextSingle'),
         placeholder_text_multiple: window.polyglot.t('chosenJS.placeHolderTextMultiple')
       });
-      $('#settings-image-cropper').cropit({
+
+      self.avatarCropper =  self.$('#settings-image-cropper');
+
+      self.avatarCropper.cropit({
         $preview: self.$('.js-settingsAvatarPreview'),
         $fileInput: self.$('#settingsAvatarInput'),
         smallImage: "stretch",
@@ -223,11 +247,11 @@ module.exports = pageVw.extend({
           console.log(data);
         },
         onImageLoading: function(){
-          self.$('.cropit-image-zoom-input').removeClass('hide');
           self.newAvatar = true;
           self.$('.js-avatarLoading').removeClass('fadeOut');
         },
         onImageLoaded: function(){
+          self.$('.js-avatarZoom, .js-avatarRotateLeft, .js-avatarRotateRight').removeClass('disabled');
           self.$('.js-avatarLoading').addClass('fadeOut');
         },
         onImageError: function(errorObject, errorCode, errorMessage){
@@ -236,6 +260,7 @@ module.exports = pageVw.extend({
           console.log(errorMessage);
         }
       });
+
       //cache elements used more than once
       self.$moderatorFeeInput = self.$('#moderatorFeeInput');
       self.$moderatorFeeHolder = self.$('.js-settingsModeratorFee');
@@ -267,6 +292,7 @@ module.exports = pageVw.extend({
           console.log(errorMessage);
         }
       });
+
       if (self.model.get('page').profile.header_hash){
         $('#settings-image-cropperBanner').cropit('imageSrc', self.serverUrl +'get_image?hash='+self.model.get('page').profile.header_hash);
         self.newBanner = false;
@@ -285,6 +311,14 @@ module.exports = pageVw.extend({
         }
       });
       editor.subscribe('blur', self.validateDescription);
+
+      self.sortableAddresses && self.sortableAddresses.destroy();
+      if(self.$('.js-sortableAddresses').length) {
+        self.sortableAddresses = Sortable.create(self.$('.js-sortableAddresses')[0], {
+          chosenClass: "addressBoxDragging",
+          ghostClass: "addressBoxGhost"
+        });
+      }
     });
     return this;
   },
@@ -358,7 +392,7 @@ module.exports = pageVw.extend({
 
     $blockedContainer.html(
         this.blockedUsersVw.render().el
-    );    
+    );
 
     this.$lazyLoadTrigger = $('<div id="blocked_user_lazy_load_trigger">').css({
       position: 'absolute',
@@ -417,16 +451,13 @@ module.exports = pageVw.extend({
   setFormValues: function(){
     var self = this,
         countries = new countriesModel(),
-        timezones = new timezonesModel(),
         languages = new languagesModel(),
         countryList = countries.get('countries'),
         currencyList = countries.get('countries'),
-        timezoneList = timezones.get('timezones'),
         languageList = languages.get('languages'),
         country = this.$('#country'),
         ship_country = this.$('#settingsShipToCountry'),
         currency = this.$('#currency_code'),
-        timezone = this.$('#time_zone'),
         language = this.$('#language'),
         generalForm = this.$('#generalForm'),
         advancedForm = this.$('#advancedForm'),
@@ -434,7 +465,6 @@ module.exports = pageVw.extend({
         ship_country_str = "",
         country_str = "",
         currency_str = "",
-        timezone_str = "",
         language_str = "",
         pageNSFW = this.model.get('page').profile.nsfw,
         notifications = user.notifications,
@@ -499,12 +529,6 @@ module.exports = pageVw.extend({
       }
     });
 
-    __.each(timezoneList, function(t){
-      var timezone_option = $('<option value="'+t.offset+'">'+ window.polyglot.t('timezones.' + t.offset) + '</option>');
-      timezone_option.attr("selected", user.time_zone == t.offset);
-      timezone_str += timezone_option[0].outerHTML;
-    });
-
     __.each(languageList, function(l){
       var language_option = $('<option value="'+l.langCode+'">'+l.langName+'</option>');
       language_option.attr("selected", user.language == l.langCode);
@@ -514,7 +538,6 @@ module.exports = pageVw.extend({
     ship_country.html(ship_country_str);
     currency.html(currency_str);
     country.html(country_str);
-    timezone.html(timezone_str);
     language.html(language_str);
 
     //set moderator status
@@ -617,7 +640,7 @@ module.exports = pageVw.extend({
     if (state){
       this.state = state;
       this.setTab(this.$('.js-' + state + 'Tab'), this.$('.js-' + state));
-     
+
       if (state == "store") {
         if (this.firstLoadModerators) {
           this.$('.js-settingsNewMods').html("");
@@ -652,13 +675,13 @@ module.exports = pageVw.extend({
   },
 
   tabClick: function(e){
-    var tab = $(e.target).data('tab');
+    var tab = $(e.target).closest('.btn-tab').data('tab');
     this.setState(tab);
     this.addTabToHistory(tab);
   },
 
   cancelView: function(){
-    Backbone.history.loadUrl();
+    app.router.refresh();
   },
 
   themeClick: function(e) {
@@ -674,34 +697,42 @@ module.exports = pageVw.extend({
     this.newBanner = true;
   },
 
+  rotateAvatarLeft: function() {
+    this.avatarCropper.cropit('rotateCCW');
+  },
+
+  rotateAvatarRight: function() {
+    this.avatarCropper.cropit('rotateCW');
+  },
+
   scrollToFirstError: function($container) {
     var $firstErr;
 
     $container = $container && $container.length ? $container : this.$el;
     $firstErr = $container.find(':invalid, .invalid').eq(0);
     $firstErr.length && $firstErr[0].scrollIntoViewIfNeeded();
-  },  
-  
+  },
+
   saveGeneralClick: function() {
     this.saveGeneral();
   },
-  
+
   savePageClick: function() {
     this.savePage();
   },
-  
+
   saveStoreClick: function() {
     this.saveStore();
   },
-  
+
   saveAddressClick: function() {
     this.saveAddress();
   },
-  
+
   saveModeratorClick: function() {
     this.saveModerator();
   },
-  
+
   saveAdvancedClick: function() {
     this.saveAdvanced();
   },
@@ -715,7 +746,7 @@ module.exports = pageVw.extend({
         form = this.$("#generalForm"),
         cCode = this.$('#currency_code').val(),
         $saveBtn = this.$('.js-saveGeneral');
-        
+
     $saveBtn.addClass('loading');
 
     localStorage.setItem('NSFWFilter', this.$("#generalForm input[name=nsfw]:checked").val());
@@ -732,7 +763,10 @@ module.exports = pageVw.extend({
         }, '', '', '',
         function(){
           //on invalid
-          messageModal.show(window.polyglot.t('errorMessages.saveError'), window.polyglot.t('errorMessages.missingError'));
+          app.simpleMessageModal.open({
+            title: window.polyglot.t('errorMessages.saveError'),
+            message: window.polyglot.t('errorMessages.missingError')
+          });
           self.scrollToFirstError(self.$('#generalForm'));
         }).always(function(){
           $saveBtn.removeClass('loading');
@@ -772,16 +806,20 @@ module.exports = pageVw.extend({
 
       saveToAPI(form, self.model.get('page').profile, self.serverUrl + "profile", function(){
         window.obEventBus.trigger("updateProfile");
-        
+
         app.statusBar.pushMessage({
           type: 'confirmed',
           msg: '<i>' + window.polyglot.t('saveMessages.SaveSuccess') + '</i>'
         });
-        
+
         self.refreshView();
       }, '', pageData, skipKeys, function(){
         //on invalid
-        messageModal.show(window.polyglot.t('errorMessages.saveError'), window.polyglot.t('errorMessages.missingError'));
+        app.simpleMessageModal.open({
+          title: window.polyglot.t('errorMessages.saveError'),
+          message: window.polyglot.t('errorMessages.missingError')
+        });
+
         self.scrollToFirstError(self.$('#pageForm'));
       }).always(function(){
         $saveBtn.removeClass('loading');
@@ -801,7 +839,11 @@ module.exports = pageVw.extend({
               },
               function(data){
                 $saveBtn.removeClass('loading');
-                messageModal.show(window.polyglot.t('errorMessages.saveError'), "<i>" + data.reason + "</i>");
+
+                app.simpleMessageModal.open({
+                  title: window.polyglot.t('errorMessages.saveError'),
+                  message: '<i>' + data.reason + '</i>'
+                });
               }, socialData);
         } else {
           checkSocialCount();
@@ -905,7 +947,10 @@ module.exports = pageVw.extend({
     onFail = (data) => {
       $saveBtn.removeClass('loading');
       self.scrollToFirstError(self.$('#storeForm'));
-      messageModal.show(window.polyglot.t('errorMessages.saveError'), data.reason);
+      app.simpleMessageModal.open({
+        title: window.polyglot.t('errorMessages.saveError'),
+        message: '<i>' + data.reason + '</i>'
+      });
     };
 
     saveToAPI(form, "", self.serverUrl + "profile", function() {
@@ -936,25 +981,32 @@ module.exports = pageVw.extend({
         $saveBtn = this.$('.js-saveAddress');
 
     $saveBtn.addClass('loading');
-    
+    this.$('#settingsShipToName').removeClass('invalid');
+
     newAddress.name = this.$('#settingsShipToName').val();
     newAddress.street = this.$('#settingsShipToStreet').val();
     newAddress.city = this.$('#settingsShipToCity').val();
     newAddress.state = this.$('#settingsShipToState').val();
     newAddress.postal_code = this.$('#settingsShipToPostalCode').val();
+    newAddress.alternate_contact = this.$('#settingsShipToOther').val();
     newAddress.country = this.$('#settingsShipToCountry').val();
     newAddress.displayCountry = this.$('#settingsShipToCountry option:selected').data('name');
 
     //if form is partially filled out throw error
-    if (newAddress.name || newAddress.street || newAddress.city || newAddress.state || newAddress.postal_code) {
-      if (!newAddress.name || !newAddress.street || !newAddress.city || !newAddress.state || !newAddress.postal_code){
-        messageModal.show(window.polyglot.t('errorMessages.saveError'), window.polyglot.t('errorMessages.missingError'));
+    if (newAddress.name || newAddress.street || newAddress.city || newAddress.state || newAddress.postal_code || newAddress.alternate_contact) {
+      if (!newAddress.name) {
+        this.$('#settingsShipToName').addClass('invalid');
+        app.simpleMessageModal.open({
+          title: window.polyglot.t('errorMessages.saveError'),
+          message: window.polyglot.t('errorMessages.missingErrorList', {errorList: window.polyglot.t('ShipToName')})
+        });
         $saveBtn.removeClass('loading');
         return;
       }
     }
 
-    if (newAddress.name && newAddress.street && newAddress.city && newAddress.state && newAddress.postal_code && newAddress.country) {
+
+    if (newAddress.name && newAddress.country) {
       newAddresses.push(JSON.stringify(newAddress));
     }
 
@@ -980,29 +1032,25 @@ module.exports = pageVw.extend({
   saveModerator: function(){
     var self = this,
         form = this.$("#moderatorForm"),
-        moderatorData = {},
         moderatorStatus = this.$('#moderatorYes').is(':checked'),
         makeModeratorUrl = moderatorStatus ? self.serverUrl + "make_moderator" : self.serverUrl + "unmake_moderator",
         $saveBtn = this.$('.js-saveModerator');
 
     $saveBtn.addClass('loading');
-    moderatorData.name = self.model.get('page').profile.name;
-    moderatorData.location = self.model.get('page').profile.location;
 
     saveToAPI(form, '', self.serverUrl + "profile", function(){
       app.statusBar.pushMessage({
         type: 'confirmed',
         msg: '<i>' + window.polyglot.t('saveMessages.SaveSuccess') + '</i>'
       });
-      
+
       window.obEventBus.trigger("updateProfile");
       self.refreshView();
-      }, function(){
-        self.scrollToFirstError(self.$('#moderatorForm'));
-      }, moderatorData).always(function(){
-        $saveBtn.removeClass('loading');
-      }
-    );
+    }, function(){
+      self.scrollToFirstError(self.$('#moderatorForm'));
+    }).always(function(){
+      $saveBtn.removeClass('loading');
+    });
 
     $.ajax({
       type: "POST",
@@ -1010,7 +1058,10 @@ module.exports = pageVw.extend({
       processData: false,
       dataType: "json",
       error: function(){
-        messageModal.show(window.polyglot.t('errorMessages.saveError'), "<i>" + window.polyglot.t('errorMessaes.serverError') + "</i>");
+        app.simpleMessageModal.open({
+          title: window.polyglot.t('errorMessages.saveError'),
+          message: '<i>' + window.polyglot.t('errorMessages.serverError') + '</i>'
+        });
       }
     });
   },
@@ -1026,14 +1077,13 @@ module.exports = pageVw.extend({
       port: hostport[1]
     });
 
-    connection.on('error', function(){
+    connection.on('error', () => {
       $('#testSMTPButton').removeClass('loading');
-      messageModal.show(
-            window.polyglot.t('errorMessages.smtpServerError'),
-            window.polyglot.t('errorMessages.noSMTPConnection')
-        );
-    }
-    );
+      app.simpleMessageModal.open({
+        title: window.polyglot.t('errorMessages.smtpServerError'),
+        message: window.polyglot.t('errorMessages.noSMTPConnection')
+      });
+    });
 
     connection.connect(function() {
 
@@ -1043,17 +1093,17 @@ module.exports = pageVw.extend({
       connection.login({
         user: username,
         pass: password
-      }, function(err) {
+      }, (err) => {
         if (err) {
-          messageModal.show(
-            window.polyglot.t('errorMessages.smtpServerError'),
-            window.polyglot.t('errorMessages.badSMTPAuthentication')
-          );
+          app.simpleMessageModal.open({
+            title: window.polyglot.t('errorMessages.smtpServerError'),
+            message: window.polyglot.t('errorMessages.badSMTPAuthentication')
+          });
         } else {
-          messageModal.show(
-            window.polyglot.t('errorMessages.smtpServerSuccess'),
-            window.polyglot.t('errorMessages.goodSMTPAuthentication')
-          );
+          app.simpleMessageModal.open({
+            title: window.polyglot.t('errorMessages.smtpServerSuccess'),
+            message: window.polyglot.t('errorMessages.goodSMTPAuthentication')
+          });
         }
         $('#testSMTPButton').removeClass('loading');
       });
@@ -1068,7 +1118,7 @@ module.exports = pageVw.extend({
     $saveBtn.addClass('loading');
 
     localStorage.setItem('AdditionalPaymentData', form.find('input[name=additionalPaymentData]:checked').val());
-    
+
     saveToAPI(form, this.userModel.toJSON(), self.serverUrl + "settings", function(){
       app.statusBar.pushMessage({
         type: 'confirmed',
@@ -1076,7 +1126,7 @@ module.exports = pageVw.extend({
       }, function(){
         self.scrollToFirstError(self.$('#advancedForm'));
       }, '', '', '');
-      
+
       self.refreshView();
     }).always(function(){
       $saveBtn.removeClass('loading');
@@ -1113,19 +1163,9 @@ module.exports = pageVw.extend({
     });
   },
 
-  checkPGPKey: function(e){
-    if (!this.$(e.target).val().length){
-      this.$('.js-settingsSignatureRow').css("height", 0);
-      this.$('#signature').removeAttr("required");
-    } else {
-      this.$('.js-settingsSignatureRow').css("height", 50);
-      this.$('#signature').attr("required", '');
-    }
-  },
-
   toggleFancyStyles: function(){
     var $html = $('html');
-    
+
     if ($('#advancedForm').find('input[name="minEffects"]').prop('checked')){
       $html.addClass('minEffects');
       localStorage.setItem('minEffects', "true");
@@ -1146,7 +1186,6 @@ module.exports = pageVw.extend({
 
   remove: function() {
     this.blockedUsersVw && this.blockedUsersVw.remove();
-
     this.blockedUsersScrollHandler &&
       this.$obContainer.off('scroll', this.blockedUsersScrollHandler);
 

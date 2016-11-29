@@ -123,26 +123,6 @@
 
             </div>
 
-            <div class="flexRow overflowVisible">
-
-              <div class="flexCol-3  borderRight custCol-border">
-                <div class="fieldItem">
-                  <label for="time_zone">
-                    <%= polyglot.t('TimeZone') %>
-                  </label>
-                </div>
-              </div>
-
-              <div class="flexCol-9 borderRight0 custCol-border">
-                <div class="fieldItem padding0">
-                  <div class="fieldItem-selectWrapper chosen-relative noIcon">
-                    <select name="time_zone" class="chosen" id="time_zone">
-                    </select>
-                  </div>
-                </div>
-              </div>
-            </div>
-
             <div class="flexRow">
               <div class="flexCol-3  borderRight custCol-border">
                 <div class="fieldItem">
@@ -282,16 +262,24 @@
                 </div>
               </div>
               <div class="flexCol-9 borderRight0 custCol-border">
-                <div id="settings-image-cropper" class="positionWrapper">
+                <div id="settings-image-cropper" class="positionWrapper flexRow">
                   <div class="statusBar navBar fadeOut positionAbsolute js-avatarLoading">
                     <div class="pad20 rowTop20 width100"><h4 class="txt-center"><%= polyglot.t('LoadingImage') %></h4></div>
                   </div>
-                  <div class="cropit-image-preview cropit-avatar js-settingsAvatarPreview rowTop20 thumbnail thumbnail-huge box-border pull-left row20 marginLeft12"></div>
-                  <div>
-                    <input type="range" class="cropit-image-zoom-input rowTop20 row20  marginLeft12 hide" />
+                  <div class="cropit-image-preview cropit-avatar js-settingsAvatarPreview rowTop20 thumbnail thumbnail-huge box-border row20 marginLeft12"></div>
+                  <div class="rowTop20 marginLeft12 flexCol-3">
+                    <div class="flexRow row20">
+                      <a class="btn flexExpand marginRight5 color-secondary custCol-secondary ion-reply disabled js-avatarRotateLeft"></a>
+                      <a class="btn flexExpand marginLeft5 color-secondary custCol-secondary ion-forward disabled js-avatarRotateRight"></a>
+                    </div>
+                    <div>
+                      <input type="range" class="cropit-image-zoom-input row20 disabled js-avatarZoom" />
+                    </div>
+                    <div>
+                      <input type="file" id="settingsAvatarInput" class="cropit-image-input hide" />
+                      <label for="settingsAvatarInput" class="btn btn-txt rowTop20 row20 width100 color-secondary custCol-secondary"><%= polyglot.t('NewAvatar') %></label>
+                    </div>
                   </div>
-                  <input type="file" id="settingsAvatarInput" class="cropit-image-input hide" />
-                  <label for="settingsAvatarInput" class="btn btn-txt rowTop20 marginLeft12 row20 color-secondary custCol-secondary"><%= polyglot.t('NewAvatar') %></label>
                 </div>
               </div>
             </div>
@@ -406,41 +394,6 @@
                        value="<%= ob.page.profile.social_accounts.snapchat.username %>">
               </div>
             </div>
-<!--
-            <div class="flexRow TODO">
-              <div class="flexCol-3 borderRight custCol-border">
-                <div class="fieldItem">
-                  <label for="pgp_key"><%= polyglot.t('PGPKey') %></label>
-                </div>
-              </div>
-
-              <div class="flexCol-9 borderRight0 custCol-border">
-                <input name="pgp_key"
-                       type="text"
-                       id="pgp_key"
-                       placeholder="<%= polyglot.t('PGPKey') %>"
-                       class="fieldItem"
-                       value="<%= ob.page.profile.pgp_key %>">
-              </div>
-            </div>
-
-            <div class="flexRow foldIn js-settingsSignatureRow TODO">
-              <div class="flexCol-3 borderRight custCol-border">
-                <div class="fieldItem">
-                  <label for="signature"><%= polyglot.t('Signature') %></label>
-                </div>
-              </div>
-
-              <div class="flexCol-9 borderRight0 custCol-border">
-                <input name="signature"
-                       type="text"
-                       id="signature"
-                       placeholder="<%= polyglot.t('SignaturePlaceholder') %>"
-                       class="fieldItem">
-              </div>
-            </div>
-
-            -->
 
             <div class="flexRow borderBottom custCol-border marginTop20">
               <h3 class="padding15 margin0 fontWeight500"><%= polyglot.t('About') %></h3>
@@ -490,11 +443,11 @@
                     <label for="settings-theme-1" class="radioLabel">
                       <div class="theme-background" style="background: #5E3E36">
                         <div class="theme-global-header" style="background: #cc504b"></div>
-                        <div class="theme-header" style="background: url(imgs/themes/1/header-thumbnail.png); background-size: cover"></div> 
+                        <div class="theme-header" style="background: url(imgs/themes/1/header-thumbnail.png); background-size: cover"></div>
                         <div class="theme-nav" style="background: #cc504b">
                           <div class="theme-tab" style="background: #ba4a3f"></div>
                         </div>
-                        <div class="theme-body" style="background: #ba4a3f"></div> 
+                        <div class="theme-body" style="background: #ba4a3f"></div>
                       </div>
                     </label>
                   </div>
@@ -510,11 +463,11 @@
                     <label for="settings-theme-2" class="radioLabel">
                       <div class="theme-background" style="background: #B2B2B2">
                         <div class="theme-global-header" style="background: #E6E6E6"></div>
-                        <div class="theme-header" style="background: url(imgs/themes/2/header-thumbnail.png); background-size: cover"></div> 
+                        <div class="theme-header" style="background: url(imgs/themes/2/header-thumbnail.png); background-size: cover"></div>
                         <div class="theme-nav" style="background: #E6E6E6">
-                          <div class="theme-tab" style="background: #ffffff"></div>                      
+                          <div class="theme-tab" style="background: #ffffff"></div>
                         </div>
-                        <div class="theme-body" style="background: #ffffff"></div> 
+                        <div class="theme-body" style="background: #ffffff"></div>
                       </div>
                     </label>
                   </div>
@@ -530,11 +483,11 @@
                     <label for="settings-theme-3" class="radioLabel">
                       <div class="theme-background" style="background: #1d1d25">
                         <div class="theme-global-header" style="background: #353443"></div>
-                        <div class="theme-header" style="background: url(imgs/themes/3/header-thumbnail.png); background-size: cover"></div> 
+                        <div class="theme-header" style="background: url(imgs/themes/3/header-thumbnail.png); background-size: cover"></div>
                         <div class="theme-nav" style="background: #353443">
                           <div class="theme-tab" style="background: #474559"></div>
                         </div>
-                        <div class="theme-body" style="background: #474559"></div> 
+                        <div class="theme-body" style="background: #474559"></div>
                       </div>
                     </label>
                   </div>
@@ -544,11 +497,11 @@
                     <label for="settings-theme-4" class="radioLabel">
                       <div class="theme-background" style="background: #3d413b">
                         <div class="theme-global-header" style="background: #6e776b"></div>
-                        <div class="theme-header" style="background: url(imgs/themes/4/header-thumbnail.png); background-size: cover"></div> 
+                        <div class="theme-header" style="background: url(imgs/themes/4/header-thumbnail.png); background-size: cover"></div>
                         <div class="theme-nav" style="background: #6e776b">
                           <div class="theme-tab" style="background: #929e8e"></div>
                         </div>
-                        <div class="theme-body" style="background: #929e8e"></div> 
+                        <div class="theme-body" style="background: #929e8e"></div>
                       </div>
                     </label>
                   </div>
@@ -558,11 +511,11 @@
                     <label for="settings-theme-5" class="radioLabel">
                       <div class="theme-background" style="background: #1c2b3a">
                         <div class="theme-global-header" style="background: #334e6a"></div>
-                        <div class="theme-header" style="background: url(imgs/themes/5/header-thumbnail.png); background-size: cover"></div> 
+                        <div class="theme-header" style="background: url(imgs/themes/5/header-thumbnail.png); background-size: cover"></div>
                         <div class="theme-nav" style="background: #334e6a">
                           <div class="theme-tab" style="background: #41658a"></div>
                         </div>
-                        <div class="theme-body" style="background: #41658a"></div> 
+                        <div class="theme-body" style="background: #41658a"></div>
                       </div>
                     </label>
                   </div>
@@ -572,11 +525,11 @@
                     <label for="settings-theme-6" class="radioLabel">
                       <div class="theme-background" style="background: #141414">
                         <div class="theme-global-header" style="background: #1B1B1B"></div>
-                        <div class="theme-header" style="background: url(imgs/themes/6/header-thumbnail.png); background-size: cover"></div> 
+                        <div class="theme-header" style="background: url(imgs/themes/6/header-thumbnail.png); background-size: cover"></div>
                         <div class="theme-nav" style="background: #1B1B1B">
                           <div class="theme-tab" style="background: #252525"></div>
                         </div>
-                        <div class="theme-body" style="background: #252525"></div> 
+                        <div class="theme-body" style="background: #252525"></div>
                       </div>
                     </label>
                   </div>
@@ -853,18 +806,23 @@
               <div class="flexRow">
                 <h3 class="padding15 margin0 fontWeight500"><%= polyglot.t('CurrentAddress') %></h3>
               </div>
-              <div class="flexRow pad5 rowTop15">
+              <div class="flexRow pad5 rowTop15 js-sortableAddresses">
                 <% _.each(ob.user.shipping_addresses, function(address, i){ %>
-                <div class="flexCol-4 pad10 row15">
-                  <div class="padding10 color-secondary custCol-secondary borderRadius3 fontSize15 clearfix js-address">
-                    <div class="textOpacity1">
+                <div class="flexCol-4 pad10 row15 addressesWrapper">
+                  <div class="addressBox custCol-secondary custCol-border-background js-address">
+                    <div class="textOpacity1 row40">
                       <div><%= address.name %></div>
                       <div><%= address.street %></div>
-                      <div><%= address.city %>, <%= address.state %> <%= address.postal_code %></div>
+                      <div>
+                        <% if(address.city) print(address.city) %>
+                        <% if(address.city && address.state || address.city && address.postal_code) print(",") %>
+                        <%= address.state %> <%= address.postal_code %>
+                      </div>
+                      <div><%= address.alternate_contact %></div>
                       <div><%= address.displayCountry %></div>
                     </div>
 
-                    <div class="btn btn-txt marginTop6 custCol-primary clickable">
+                    <div class="btn btn-txt positionBottom row10 custCol-primary clickable">
                       <input type="checkbox"
                              class="hide js-settingsAddress"
                              id="settingsAddress<%= i %>"
@@ -873,6 +831,9 @@
                         <span class="fontSize12 clickable togLabelOff js-settingsAddressDelete"><%= polyglot.t('Delete') %></span>
                         <span class="fontSize12 clickable togLabelOn js-settingsAddressUnDelete"><%= polyglot.t('DontDelete') %></span>
                       </label>
+                    </div>
+                    <div class="positionBottomRight defaultLabel padding10 note">
+                      <%= polyglot.t('DefaultAddress') %>
                     </div>
                   </div>
                 </div>
@@ -890,7 +851,7 @@
               <div class="flexCol-3 borderRight custCol-border">
                 <div class="fieldItem">
                   <label for="settingsShipToName">
-                    <%= polyglot.t('ShipToName') %>
+                    <%= polyglot.t('ShipToName') %> *
                   </label>
                 </div>
               </div>
@@ -985,12 +946,32 @@
 
             </div>
 
+            <div class="flexRow">
+
+              <div class="flexCol-3 borderRight custCol-border">
+                <div class="fieldItem">
+                  <label for="settingsShipToPostalCode">
+                    <%= polyglot.t('ShipToOther') %>
+                  </label>
+                </div>
+              </div>
+
+              <div class="flexCol-9 borderRight0 custCol-border">
+                <input name="ship_to_other"
+                       id="settingsShipToOther"
+                       type="text"
+                       placeholder="<%= polyglot.t('ShipToOtherPlaceholder') %>"
+                       class="fieldItem settingsAddressInput">
+              </div>
+
+            </div>
+
             <div class="flexRow overflowVisible">
 
               <div class="flexCol-3 borderRight custCol-border">
                 <div class="fieldItem">
                   <label for="settingsShipToCountry">
-                    <%= polyglot.t('ShipToCountry') %>
+                    <%= polyglot.t('ShipToCountry') %> *
                   </label>
                 </div>
               </div>
@@ -1005,6 +986,10 @@
                     </select>
                   </div>
                 </div>
+              </div>
+
+              <div class="padding15">
+                <span class="note">* <%= polyglot.t('Required') %></span>
               </div>
             </div>
 
@@ -1066,7 +1051,7 @@
                        name="moderation_fee"
                        class="fieldItem custCol-text width70px floatLeft"
                        id="moderatorFeeInput"
-                       value="<%= ob.page.profile.moderation_fee.toFixed(2) %>" required/><div class="floatLeft marginLeft5 lineHeight51 fontWeight500 textOpacity75">%</div>
+                       value="<%= Number(ob.page.profile.moderation_fee).toFixed(2) %>" required/><div class="floatLeft marginLeft5 lineHeight51 fontWeight500 textOpacity75">%</div>
               </div>
             </div>
             <a class="btn btn-large js-saveModerator custCol-secondary pull-right marginRight15 marginTop15 marginBottom50 btn-secondary">
@@ -1218,7 +1203,7 @@
                 </div>
               </div>
             </div>
-            
+
             <div class="flexRow">
               <div class="flexCol-3  borderRight custCol-border">
                 <div class="fieldItem">
@@ -1247,7 +1232,7 @@
                   </label>
                   <i class="ion-help-circled tooltip tooltip-box" data-tooltip="<%= polyglot.t('AppBarStyleInfo') %>"></i>
                 </div>
-              </div>              
+              </div>
 
               <div class="flexCol-9 borderRight0 custCol-border">
                 <div class="fieldItem">
@@ -1257,7 +1242,7 @@
                   <label for="app_bar_style_mac" class="radioLabel"><%= polyglot.t('OSMac') %></label>
                 </div>
               </div>
-            </div>            
+            </div>
 
             <div class="flexRow">
 

@@ -2,7 +2,6 @@
 
 var __ = require('underscore'),
     Backbone = require('backbone'),
-    languagesModel = require('../models/languagesMd'),
     countriesMd = require('./countriesMd'),
     saveToAPI = require('../utils/saveToAPI');
 
@@ -10,8 +9,6 @@ module.exports = Backbone.Model.extend({
 
   initialize: function(){
     this.countries = new countriesMd();
-    this.countryArray = this.countries.get('countries');
-    this.languages = new languagesModel();
   },
 
   defaults: {
@@ -61,7 +58,7 @@ module.exports = Backbone.Model.extend({
         __.each(response.shipping_addresses, function (address) {
           if (address){
             address = JSON.parse(address);
-            if (address.name && address.street && address.city && address.state && address.postal_code && address.country && address.displayCountry){
+            if (address.name && address.displayCountry){
               tempAddresses.push(address);
             }
           }
@@ -84,8 +81,7 @@ module.exports = Backbone.Model.extend({
     response.moderators = response.moderators || [];
 
     response.moderator_guids = response.moderators.map(function(moderatorObject){
-      var modGuid = moderatorObject.guid;
-      return modGuid;
+      return moderatorObject.guid;
     });
 
     response.blocked_guids = response.blocked_guids || [];

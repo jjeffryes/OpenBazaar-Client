@@ -1,16 +1,14 @@
 'use strict';
 
 var __ = require('underscore'),
-    Backbone = require('backbone'),
     $ = require('jquery'),
     loadTemplate = require('../utils/loadTemplate'),
-    localize = require('../utils/localize');
-Backbone.$ = $;
+    baseVw = require('./baseVw');
 
-module.exports = Backbone.View.extend({
+module.exports = baseVw.extend({
 
   events: {
-    'click .js-buyWizardAddressRadio': 'selectAddress',
+    'click .js-buyWizardAddressRadio': 'selectAddressClick',
     'click .js-buyWizardAddressSelected': 'selectAddressAndAdvance'
   },
 
@@ -31,13 +29,13 @@ module.exports = Backbone.View.extend({
           loadedTemplate(
               __.extend({}, self.model.toJSON(), {
                 worldwide: self.worldwide,
-                selected: selected,
-                shipsToList: localize.localizeShippingRegions(self.shippingRegions)
+                selected: selected
               })
           )
       );
       //this does not add it to the DOM, that is done by the parent view
-      self.$('.js-buyWizardAddressRadio').eq(selected).prop('checked', true).trigger('click');
+      self.$('.js-buyWizardAddressRadio').eq(selected).prop('checked', true);
+      self.selectAddress(selected);
       //self.setAddress(selected);
     });
     return this;
@@ -47,8 +45,11 @@ module.exports = Backbone.View.extend({
     $(".js-buyWizardAddressNext").trigger( "click" );
   },
 
-  selectAddress: function(){
-    var index = this.$el.find('.js-buyWizardAddressRadio:checked').val();
+  selectAddressClick: function(e) {
+    this.selectAddress($(e.target).val());
+  },
+
+  selectAddress: function(index){
     this.setAddress(index);
   },
 

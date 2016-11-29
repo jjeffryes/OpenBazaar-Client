@@ -4,8 +4,7 @@ var ipcRenderer = require('ipc-renderer'),
     __ = require('underscore'),
     Backbone = require('backbone'),
     $ = require('jquery'),
-    app = require('./App').getApp(),    
-    messageModal = require('./utils/messageModal.js'),
+    app = require('./App').getApp(),
     homeView = require('./views/homeVw'),
     userPageView = require('./views/userPageVw'),
     settingsView = require('./views/settingsVw'),
@@ -36,7 +35,7 @@ module.exports = Backbone.Router.extend({
 
     routes.forEach((route) => {
       this.route.apply(this, route);
-    });  
+    });
 
     /*
     expects options.userModel, options userProfile, socketView from main.js
@@ -50,7 +49,7 @@ module.exports = Backbone.Router.extend({
         this.navigate(translatedRoute, { trigger: true });
       });
     });
-    
+
     originalHistoryBack = history.back;
     history.back = function() {
       self.historyAction = 'back';
@@ -62,7 +61,7 @@ module.exports = Backbone.Router.extend({
       self.historyAction = 'forward';
       return originalHistoryForward.apply(this, arguments);
     };
-    
+
     this.historySize = -1;
     this.historyPosition = -1;
     this.historyAction = 'default';
@@ -81,7 +80,7 @@ module.exports = Backbone.Router.extend({
             delete this.viewCache[key];
           }
         }
-      }      
+      }
     }, this.cleanCacheInterval);
   },
 
@@ -93,19 +92,19 @@ module.exports = Backbone.Router.extend({
       // clear any cache for the view, so a fresh view is created
       delete this.viewCache[this.view.constructor.getCacheIndex(Backbone.history.getFragment())];
     }
-    
+
     Backbone.history.loadUrl();
   },
 
   translateRoute: function(route) {
     if (!route) throw new Error('You must provide a route');
-    
+
     var guid = "",
         state = "",
         itemHash = "",
         routeArray = route.replace("ob://", "").replace(/ /g, "").split("/"),
         deferred = $.Deferred();
-    
+
     state = routeArray[1] ? "/" + routeArray[1] : "";
     itemHash = routeArray[2] ? "/" + routeArray[2] : "";
 
@@ -151,7 +150,7 @@ module.exports = Backbone.Router.extend({
 
     return deferred.promise();
   },
-  
+
   execute: function(callback, args, name) {
     if (this.historyAction == 'default') {
       this.historyPosition += 1;
@@ -170,20 +169,19 @@ module.exports = Backbone.Router.extend({
     } else {
       $('.js-navFwd').removeClass('disabled-icon');
     }
-    
+
     if (this.historyPosition == 1) {
       $('.js-navBack').addClass('disabled-icon');
     } else {
       $('.js-navBack').removeClass('disabled-icon');
     }
-    
+
     if (callback) callback.apply(this, args);
   },
 
-  cleanup: function(){
-    $('#loadingModal').addClass('hide'); //hide modal if it is still visible
-    messageModal.hide();
-    $('#obContainer').removeClass('modalOpen innerModalOpen box-borderDashed noScrollBar overflowHidden');
+  cleanup: function() {
+    app.loadingModal.close();
+    app.simpleMessageModal.close();
     window.obEventBus.trigger('cleanNav');
   },
 
@@ -192,14 +190,14 @@ module.exports = Backbone.Router.extend({
 
     fragment = fragment || Backbone.history.getFragment();
     index = view.constructor.getCacheIndex(fragment);
-    
+
     this.viewCache[index] = {
       cachedAt: Date.now(),
       view: this.view
     };
   },
 
-  newView: function(View, options, ignoreCache) {
+  newView: function(View, options) {
     var now = Date.now(),
         cached = this.viewCache[View.getCacheIndex(Backbone.history.getFragment())],
         requestedRoute = Backbone.history.getFragment(),
@@ -221,8 +219,7 @@ module.exports = Backbone.Router.extend({
 
     $('body').attr('id', options.bodyID);
     $('body').attr('class', options.bodyClass);
-    $('#obContainer').removeClass('customizeUserPage'); //remove customization styling if present
-    
+
     this.pageConnectModal && this.pageConnectModal.remove();
     this.pageConnectModal = null;
 
@@ -249,11 +246,11 @@ module.exports = Backbone.Router.extend({
         this.view.$el.detach();
         this.trigger('cache-detached', { view: this.view });
       } else {
-        this.view.close ? this.view.close() : this.view.remove();         
+        this.view.close ? this.view.close() : this.view.remove();
       }
     }
 
-    if (cached && (now - cached.cachedAt < cached.view.cacheExpires && !ignoreCache)) {
+    if (cached && (now - cached.cachedAt < cached.view.cacheExpires)) {
       // we have an un-expired cached view, let's reattach it
       this.view = cached.view;
 
@@ -276,10 +273,12 @@ module.exports = Backbone.Router.extend({
         typeof loadingConfig.promise.then === 'function') {
         this.launchPageConnectModal(loadingConfig).done(() => {
           this.view.cacheExpires && this.cacheView(this.view);
+        }).fail(() => {
+          this.view.remove();
         });
       } else {
         this.view.cacheExpires && this.cacheView(this.view);
-      }      
+      }
     }
   },
 
@@ -298,7 +297,6 @@ module.exports = Backbone.Router.extend({
       throw new Error('At a minimum, the config must contain a config.promise.');
     }
 
-    $('#loadingModal').addClass('hide');
     config = __.extend({}, defaults, config);
 
     this.pageConnectModal && this.pageConnectModal.remove();
@@ -307,7 +305,7 @@ module.exports = Backbone.Router.extend({
         statusText: config.connectText,
         tooltip: config.connectTooltip
       }
-    }).render().open();    
+    }).render().open();
 
     this.pageConnectModal.on('back', () => {
       history.back();
@@ -345,16 +343,16 @@ module.exports = Backbone.Router.extend({
   },
 
   index: function(){
-    if (localStorage.getItem("route")){
-      this.navigate('#' + localStorage.getItem("route"), {trigger: true});
+    const host = encodeURIComponent(app.serverConfigs.getActive().getServerBaseUrl());
+    const route = localStorage.getItem(host);
+    if (route){
+      this.navigate('#' + route, {trigger: true});
     } else {
       this.navigate('#home', {trigger: true});
     }
   },
 
   home: function(state, searchText){
-    //if search terms have been given, don't use cached views
-    var ignoreCache = Boolean(searchText);
     this.newView(homeView, {
       viewArgs: {
         userModel: this.userModel,
@@ -363,7 +361,7 @@ module.exports = Backbone.Router.extend({
         state: state,
         searchItemsText: searchText
       }
-    }, ignoreCache);
+    });
 
     // hide the discover onboarding callout
     this.$discoverHolder = this.$discoverHolder || $('.js-OnboardingIntroDiscoverHolder');
@@ -414,7 +412,7 @@ module.exports = Backbone.Router.extend({
       // we want this to happen after the launchPageConnectModal processes
       // the resolution of the promise, hence the timeout.
       setTimeout(() => {
-        this.navigate(`userPage/${guid}${subPath ? '/' + subPath : ''}`, { replace: true });
+        this.navigate(`userPage/${guid}${subPath ? '/' + subPath.join('/') : ''}`, { replace: true });
         this.userPage(guid, state, itemHash, skipNSFWmodal, '@' + handle);
       }, 0);
     });

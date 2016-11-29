@@ -4,7 +4,8 @@ var __ = require('underscore'),
     getBTPrice = require('../utils/getBitcoinPrice'),
     app = require('../App').getApp(),
     countriesMd = require('./countriesMd'),
-    autolinker = require( '../utils/customLinker');
+    autolinker = require( '../utils/customLinker'),
+    sanitizeModel = require('../utils/sanitizeModel');
 
 module.exports = window.Backbone.Model.extend({
   defaults: {
@@ -23,8 +24,6 @@ module.exports = window.Backbone.Model.extend({
     userCountry: "", //set by userPage View. This is a country code. This is used for editing.
     ownPage: false, //set by userPage View
     itemHash: "", //set by userPage View
-    combinedImagesArray: [], //tracks uploaded and old images
-    imageHashesToUpload: [],
     priceSet: 0, //set in Update Attribute below, so view can listen for it
 
     //the object below is just a reference for a typical response from the server.
@@ -110,6 +109,10 @@ module.exports = window.Backbone.Model.extend({
     //when vendor currency code is in bitcoins, the json returned is different. Put the value in the expected place so the templates don't break.
     //check to make sure a blank result wasn't returned from the server
     if (response.vendor_offer){
+
+      //sanitize html
+      response.vendor_offer = sanitizeModel(response.vendor_offer);
+
       if (response.vendor_offer.listing.item.price_per_unit.bitcoin){
         response.vendor_offer.listing.item.price_per_unit.fiat = {
           "price": response.vendor_offer.listing.item.price_per_unit.bitcoin,
@@ -185,7 +188,6 @@ module.exports = window.Backbone.Model.extend({
     //listen for fetched. This is set by the view after fetch is successful, to prevent multiple fires of changed.
     this.on('change:fetched', this.updateAttributes, this);
     this.countries = new countriesMd();
-    this.countryArray = this.countries.get('countries');
   },
 
   updateAttributes: function(callback){

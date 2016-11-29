@@ -1,39 +1,22 @@
 'use strict';
 
 var __ = require('underscore'),
-    Backbone = require('backbone'),
     $ = require('jquery'),
     loadTemplate = require('../utils/loadTemplate'),
     countriesModel = require('../models/countriesMd'),
-    baseVw = require('./baseVw'),
+    baseModal = require('./baseModal'),
     buyDetailsVw = require('./buyDetailsVw'),
     buyAddressesVw = require('./buyAddressesVw'),
-    messageModal = require('../utils/messageModal.js'),
     saveToAPI = require('../utils/saveToAPI'),
     chosen = require('../utils/chosen.jquery.min.js'),
     qr = require('qr-encode'),
     app = require('../App').getApp(),
     clipboard = require('clipboard'),
     templateHelpers = require('../utils/templateHelpers');
-Backbone.$ = $;
 
-// randomize function
-$.fn.randomize = function(selector){
-  var $elems = selector ? $(this).find(selector) : $(this).children(),
-      $parents = $elems.parent();
+module.exports = baseModal.extend({
 
-  $parents.each(function(){
-    $(this).children(selector).sort(function(){
-      return Math.round(Math.random()) - 0.5;
-    }).detach().appendTo(this);
-  });
-
-  return this;
-};
-
-module.exports = baseVw.extend({
-
-  className: "buyView",
+  className: "buyView custCol-text insideApp",
 
   events: {
     'click .js-buyWizardModal': 'blockClicks',
@@ -190,6 +173,8 @@ module.exports = baseVw.extend({
     loadTemplate('./js/templates/buyWizard.html', function(loadedTemplate) {
       self.$el.html(loadedTemplate(self.model.toJSON()));
 
+      baseModal.prototype.render.apply(self, arguments);
+
       //add subviews
       self.buyDetailsView && self.buyDetailsView.remove();
       self.buyDetailsView = new buyDetailsVw({model: self.model});
@@ -204,7 +189,7 @@ module.exports = baseVw.extend({
       self.$buyWizardMap = self.$('.js-buyWizardMap');
 
       //init the accordion
-      self.initAccordion('.js-buyWizardAccordion');
+      setTimeout(() => self.initAccordion('.js-buyWizardAccordion'));
 
       // fade the modal in after it loads and focus the input
       self.$el.find('.js-buyWizardModal').removeClass('fadeOut');
@@ -221,9 +206,13 @@ module.exports = baseVw.extend({
       //auto select first payment type
       self.$el.find("input:radio[name=radioPaymentType]:first").attr('checked', true).trigger('click');
 
-      //randomize the bitcoin wallet providers 5 times
-      for (var i = 0; i < 5; i++) {
-        $(".js-BuyWizardWallets").randomize();
+      //randomize the bitcoin wallet providers
+
+      let $allWallets = self.$(".js-BuyWizardWallets");
+      let wallets = $allWallets.children('.js-bitcoinWalletProvider');
+
+      while (wallets.length){
+        $allWallets.append(wallets.splice(Math.floor(Math.random() * wallets.length), 1)[0]);
       }
 
       //set the QR details checkbox
@@ -241,7 +230,7 @@ module.exports = baseVw.extend({
     } else {
       this.model.set('selectedModerator', "");
     }
-    
+
     this.$el.find('#BuyWizardPaymentType .js-buyWizardModNext').removeClass('disabled');
 
   },
@@ -262,7 +251,7 @@ module.exports = baseVw.extend({
     this.$buyWizardMap.find('iframe').addClass('blurMore');
 
     //set chosen inputs
-    $('.chosen').chosen({ 
+    $('.chosen').chosen({
       search_contains: true,
       no_results_text: window.polyglot.t('chosenJS.noResultsText'),
       placeholder_text_single: window.polyglot.t('chosenJS.placeHolderTextSingle'),
@@ -351,21 +340,23 @@ module.exports = baseVw.extend({
     newAddress.city = this.$el.find('#buyWizardCityInput').val();
     newAddress.state = this.$el.find('#buyWizardStateInput').val();
     newAddress.postal_code = this.$el.find('#buyWizardPostalInput').val();
+    newAddress.alternate_contact = this.$el.find('#buyWizardOther').val();
     newAddress.country = this.$el.find('#buyWizardCountryInput').val();
     newAddress.displayCountry = this.$el.find('#buyWizardCountryInput option:selected').data('name');
 
-    if (newAddress.name && newAddress.street && newAddress.city && newAddress.state && newAddress.postal_code && newAddress.country) {
+    if (newAddress.name && newAddress.country) {
       newAddresses.push(JSON.stringify(newAddress));
     }
 
     addressData.shipping_addresses = newAddresses;
 
-    saveToAPI(targetForm, this.userModel.toJSON(), self.model.get('serverUrl') + "settings", function(){
+    saveToAPI(targetForm, this.userModel.toJSON(), app.serverConfigs.getActive().getServerBaseUrl() + "/settings", function(){
       self.$el.find('#buyWizardNameInput').val("");
       self.$el.find('#buyWizardStreetInput').val("");
       self.$el.find('#buyWizardCityInput').val("");
       self.$el.find('#buyWizardStateInput').val("");
       self.$el.find('#buyWizardPostalInput').val("");
+      self.$el.find('#buyWizardOther').val("");
       self.$el.find('#buyWizardCountryInput').val(self.userModel.get('country'));
       self.$el.find('.chosen').trigger('chosen:updated');
       targetForm.removeClass('formChecked').find('.formChecked').removeClass('formChecked');
@@ -383,11 +374,16 @@ module.exports = baseVw.extend({
         self.buyAddressesView.render(selected);
       },
       error: function(){
-        messageModal.show(window.polyglot.t('errorMessages.serverError'));
+        app.simpleMessageModal.open({
+          title: window.polyglot.t('errorMessages.serverError')
+        });
       },
       complete: function(xhr, textStatus) {
         if (textStatus == 'parsererror'){
-          messageModal.show(window.polyglot.t('errorMessages.serverError'), window.polyglot.t('errorMessages.badJSON'));
+          app.simpleMessageModal.open({
+            title: window.polyglot.t('errorMessages.serverError'),
+            message: window.polyglot.t('errorMessages.badJSON')
+          });
         }
       }
     });
@@ -406,12 +402,12 @@ module.exports = baseVw.extend({
       addressString = address.street + ", " + address.city + ", " + address.state + " " + address.postal_code + " " + address.displayCountry;
     } else {
       // if address is invalid, we'll create a dummy address for which google maps will show a map of the world
-      addressString = "123 Street, City, State 12345 Country";      
+      addressString = "123 Street, City, State 12345 Country";
     }
 
     addressString = encodeURIComponent(addressString);
     var $iFrame = $('<iframe class="js-iframe-pending positionTop" width="525" height="250" frameborder="0" style="border:0; margin-top: 0; height: 250px; clip: rect(0,0,0,0)" />');
-       
+
     if ($currentIframe.length) {
       this.$buyWizardMap.find('.js-mapSpinner').removeClass('hide');
       $iFrame.insertBefore($currentIframe);
@@ -419,10 +415,10 @@ module.exports = baseVw.extend({
       this.$buyWizardMap.find('.mapWrap')
         .prepend($iFrame);
     }
-    
+
     $iFrame.on('load', () => {
       this.$buyWizardMap.find('.js-mapSpinner').addClass('hide');
-      
+
       $currentIframe.addClass('js-iframe-leaving')
         .fadeOut({
           duration: 'slow',
@@ -445,13 +441,16 @@ module.exports = baseVw.extend({
 
     if (modForm[0].checkValidity()) {
       if (bitCoinReturnAddr != this.userModel.get('refund_address')) {
-        saveToAPI(modForm, this.userModel.toJSON(), this.model.get('serverUrl') + "settings", function () {
+        saveToAPI(modForm, this.userModel.toJSON(), app.serverConfigs.getActive().getServerBaseUrl() + "/settings", function () {
           window.obEventBus.trigger("updateUserModel");
           self.skipAddressCheck();
         },
-            function () {
-              messageModal.show(window.polyglot.t('errorMessages.saveError'), window.polyglot.t('errorMessages.missingError') + "<br>" + window.polyglot.t('BitcoinReturnAddress'));
-            });
+        function () {
+          app.simpleMessageModal.open({
+            title: window.polyglot.t('errorMessages.serverError'),
+            message: window.polyglot.t('errorMessages.missingError') + '<br>' + window.polyglot.t('BitcoinReturnAddress')
+          });
+        });
       } else {
         this.skipAddressCheck();
       }
@@ -490,7 +489,10 @@ module.exports = baseVw.extend({
         bitCoinReturnAddr = this.$('#buyWizardBitcoinAddressInput').val();
 
     if (!this.$('#buyWizardQuantity')[0].checkValidity()){
-      messageModal.show(window.polyglot.t('errorMessages.saveError'), window.polyglot.t('errorMessages.missingError'));
+      app.simpleMessageModal.open({
+        title: window.polyglot.t('errorMessages.serverError'),
+        message: window.polyglot.t('errorMessages.missingError')
+      });
       return;
     }
 
@@ -507,6 +509,7 @@ module.exports = baseVw.extend({
       formData.append("city", selectedAddress.city);
       formData.append("state", selectedAddress.state);
       formData.append("postal_code", selectedAddress.postal_code);
+      formData.append("alternate_contact", selectedAddress.alternate_contact);
       formData.append("country", selectedAddress.country);
     }
 
@@ -524,7 +527,7 @@ module.exports = baseVw.extend({
 
     this.buyRequest = $.ajax({
       type: "POST",
-      url: self.model.get('serverUrl') + "purchase_contract",
+      url: app.serverConfigs.getActive().getServerBaseUrl() + "/purchase_contract",
       contentType: false,
       processData: false,
       data: formData,
@@ -534,8 +537,12 @@ module.exports = baseVw.extend({
           self.showPayAddress(data);
           self.cachePayData = data; //cache the data for the QR Details toggle
         } else {
-          messageModal.show(window.polyglot.t('errorMessages.contractError'), window.polyglot.t('errorMessages.sellerError') +" " +
-              window.polyglot.t('errorMessages.checkPurchaseData') + "\n\n Reason: " + data.reason);
+          app.simpleMessageModal.open({
+            title: window.polyglot.t('errorMessages.contractError'),
+            message: window.polyglot.t('errorMessages.sellerError') + ' ' +
+              window.polyglot.t('errorMessages.checkPurchaseData') + '\n\n Reason: ' + data.reason
+          });
+
           self.$('.js-buyWizardSpinner').addClass('hide');
           //re-enable form so they can try again
           self.$('.js-buyWizardSendPurchase').removeClass('hide');
@@ -575,12 +582,12 @@ module.exports = baseVw.extend({
     totalBTCPrice = data.amount - this.partialPaymentAmount;
     this.$el.find('.js-buyWizardDetailsTotalBTC').text(templateHelpers.intlNumFormat(totalBTCPrice, 8));
     this.payURL = data.payment_address;
-    
+
     payHREF = "bitcoin:"+ data.payment_address+"?amount="+totalBTCPrice;
     if (localStorage.getItem('AdditionalPaymentData') != "false") {
       payHREF += "&label="+storeName+"&message="+message;
     }
-    
+
     this.hideMaps();
     this.$el.find('.js-buyWizardPay').removeClass('hide');
     dataURI = qr(payHREF, {type: 10, size: 10, level: 'M'});
@@ -627,13 +634,12 @@ module.exports = baseVw.extend({
   },
 
   checkPayment: function(){
-    var self = this,
-        formData = new FormData();
+    var formData = new FormData();
 
     formData.append("order_id", this.orderID);
     $.ajax({ //this only triggers the server to send a new socket message
       type: "POST",
-      url: self.model.get('serverUrl') + "check_for_payment",
+      url: app.serverConfigs.getActive().getServerBaseUrl() + "/check_for_payment",
       contentType: false,
       processData: false,
       data: formData,
@@ -649,7 +655,7 @@ module.exports = baseVw.extend({
     new Notification(window.polyglot.t('buyFlow.paymentSent'), {
       silent: true
     });
-    
+
     // play notification sound
     var notificationSound = document.createElement('audio');
     notificationSound.setAttribute('src', './audio/notification.mp3');
@@ -680,10 +686,10 @@ module.exports = baseVw.extend({
   },
 
   closeWizard: function() {
-    $('#obContainer').removeClass('modalOpen');
     if (this.buyRequest){
       this.buyRequest.abort();
     }
-    this.remove();
+
+    this.close();
   }
 });
