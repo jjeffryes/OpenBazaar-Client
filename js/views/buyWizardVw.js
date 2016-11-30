@@ -11,7 +11,7 @@ var __ = require('underscore'),
     chosen = require('../utils/chosen.jquery.min.js'),
     qr = require('qr-encode'),
     app = require('../App').getApp(),
-    clipboard = require('clipboard'),
+    clipboard = require('electron').clipboard,
     templateHelpers = require('../utils/templateHelpers');
 
 module.exports = baseModal.extend({
@@ -398,15 +398,16 @@ module.exports = baseModal.extend({
     $currentIframe = this.$buyWizardMap.find('iframe');
     $currentIframe.addClass('blurMore');
 
-    if (address && address.street && address.city && address.state && address.postal_code) {
-      addressString = address.street + ", " + address.city + ", " + address.state + " " + address.postal_code + " " + address.displayCountry;
+    if (address) {
+      addressString = address.street + " " + address.city + " " + address.state + " " + address.postal_code + " " + address.displayCountry;
+      addressString = addressString.trim();
     } else {
       // if address is invalid, we'll create a dummy address for which google maps will show a map of the world
       addressString = "123 Street, City, State 12345 Country";
     }
 
     addressString = encodeURIComponent(addressString);
-    var $iFrame = $('<iframe class="js-iframe-pending positionTop" width="525" height="250" frameborder="0" style="border:0; margin-top: 0; height: 250px; clip: rect(0,0,0,0)" />');
+    var $iFrame = $('<iframe class="js-iframe-pending positionTop" width="525" height="250" frameborder="0" style="border:0; margin-top: 0; height: 250px; clip: rect(0,525px,250px,0)" />');
 
     if ($currentIframe.length) {
       this.$buyWizardMap.find('.js-mapSpinner').removeClass('hide');
@@ -463,6 +464,7 @@ module.exports = baseModal.extend({
       this.showMaps();
       if (this.userModel.get('shipping_addresses').length === 0){
         this.createNewAddress();
+        this.displayMap();
         $('.js-buyWizardAddressBack').show();
         $('.js-buyWizardNewAddressCancel').hide();
       }
@@ -606,7 +608,7 @@ module.exports = baseModal.extend({
     var totalPrice = this.model.get('totalPrice'),
         totalBTCPrice = this.model.get('totalBTCDisplayPrice'),
         userCurrency = this.model.get('userCurrencyCode'),
-        totalDisplayPrice = userCurrency == "BTC" ? app.intlNumFormat(totalPrice, 8) + " BTC" : new Intl.NumberFormat(window.lang, {
+        totalDisplayPrice = userCurrency == "BTC" ? app.formatBitcoin(totalPrice) : new Intl.NumberFormat(window.lang, {
           style: 'currency',
           minimumFractionDigits: 2,
           maximumFractionDigits: 2,

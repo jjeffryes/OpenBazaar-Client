@@ -47,6 +47,7 @@ module.exports = baseModal.extend({
     loadTemplate('./js/templates/aboutModal.html', (t) => {
       this.$el.html(t({
         version: this.options.version,
+        serverVersion: this.options.serverVersion,
         tab: this._tab
       }));
 

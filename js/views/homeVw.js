@@ -267,7 +267,8 @@ module.exports = pageVw.extend({
         addressCountries = this.userModel.get('shipping_addresses').map(function(address) {
           return address.country;
         }),
-        userCountry = this.userModel.get('country');
+        userCountry = this.userModel.get('country'),
+        contract_type = item.contract_type;
 
     addressCountries.push(userCountry);
 
