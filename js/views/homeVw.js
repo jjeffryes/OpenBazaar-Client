@@ -58,7 +58,7 @@ module.exports = pageVw.extend({
     this.showNSFW = JSON.parse(localStorage.getItem('NSFWFilter'));
     this.cachedScrollPositions = {};
     this.loadedUsers = [];
-    this.searchWith = "DHT";
+    this.searchWith = localStorage.getItem('searchWith') || 'DHT';
     this.current3rdPPage = 0;
 
     this.model.set({user: this.options.userModel.toJSON(), page: this.userProfile.toJSON()});
@@ -208,7 +208,8 @@ module.exports = pageVw.extend({
     loadTemplate('./js/templates/backToTop.html', function(backToTopTmpl) {
       loadTemplate('./js/templates/home.html', function(loadedTemplate) {
         self.$el.html(loadedTemplate({
-          backToTopTmpl: backToTopTmpl
+          backToTopTmpl: backToTopTmpl,
+          searchWith: self.searchWith
         }));
 
         self.listingToggle = self.$('.js-homeListingToggle');
@@ -563,7 +564,6 @@ module.exports = pageVw.extend({
     this.setSearchWith('DHT');
     this.$searchDHTbtn.addClass('active');
     this.$search3rdPBtn.removeClass('active');
-
   },
 
   clickSearch3rdP: function(e) {
@@ -574,6 +574,7 @@ module.exports = pageVw.extend({
 
   setSearchWith: function(searchWith) {
     this.searchWith = searchWith;
+    localStorage.setItem('searchWith', searchWith);
     this.loadItemsOrSearch();
   },
 
@@ -634,7 +635,7 @@ module.exports = pageVw.extend({
             let hitListing = hit.vendor_offer.listing;
             listing.avatar_hash = hitListing.vendor.avatar_hash;
             listing.contract_hash = hitListing.id.guid;
-            listing.contract_type = hitListing.metadata.category;
+            listing.contract_type = hitListing.metadata.category.toUpperCase().replace(/ /g, "_");
             listing.currency_code = "BTC"; // duosearch only sends BTC
             listing.discover = true;
             listing.guid = hitListing.id.guid;

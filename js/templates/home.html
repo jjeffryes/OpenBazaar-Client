@@ -30,8 +30,8 @@
       <div class="flexExpand">
         <div class="pull-right marginRight10">
           <div class="btn-togWrapper">
-            <a class="btn btn-txt btn-togLeft toggle-txt active js-searchDHT">DHT</a>
-            <a class="btn btn-txt btn-togRight toggle-txt js-search3rdP" data-searchType="Duo">Duo</a>
+            <a class="btn btn-txt btn-togLeft toggle-txt js-searchDHT <%if(ob.searchWith === 'DHT'){ %>active<%}%>" data-searchType="DHT">DHT</a>
+            <a class="btn btn-txt btn-togRight toggle-txt js-search3rdP <%if(ob.searchWith === 'Duo'){ %>active<%}%>" data-searchType="Duo">Duo</a>
           </div>
         </div>
       </div>
