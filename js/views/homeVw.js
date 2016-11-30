@@ -35,7 +35,8 @@ module.exports = pageVw.extend({
     'click .js-homeListingsAll': 'clickListingsAll',
     'click .backToTop': 'clickBackToTop',
     'click .js-searchDHT': 'clickSearchDHT',
-    'click .js-search3rdP': 'clickSearch3rdP'
+    'click .js-search3rdP': 'clickSearch3rdP',
+    'click .js-optionsToggle': 'clickOptionsToggle'
   },
 
   initialize: function(options){
@@ -253,6 +254,9 @@ module.exports = pageVw.extend({
         self.$backToTop = self.$('.backToTop');
         self.$searchDHTbtn = self.$('.js-searchDHT');
         self.$search3rdPBtn = self.$('.js-search3rdP');
+        self.$optionsPanel = self.$('.js-optionsPanel');
+        self.$optionsToggle = self.$('.js-optionsToggle');
+        self.$optionsArrow = self.$optionsToggle.find('i');
       });
     });
   },
@@ -520,6 +524,11 @@ module.exports = pageVw.extend({
     if (!this.searchItemsText){
       this.listingToggle.removeClass('hide');
     }
+  },
+
+  clickOptionsToggle: function(){
+    this.$optionsPanel.toggleClass('hide');
+    this.$optionsArrow.toggleClass('ion-arrow-right-b ion-arrow-down-b');
   },
 
   searchItemsKeyup: function(e){
